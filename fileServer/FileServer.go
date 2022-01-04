@@ -23,40 +23,32 @@ type PatchRequestBody struct {
 
 type FileServer struct {
   scheduler Scheduler
-  rootPath string
+  rootDir string
   urlPrefix string
 }
 
-func MakeFileServer(rootPath string, urlPrefix string) (*FileServer, error) {
+func MakeFileServer(rootDir string, urlPrefix string) (*FileServer, error) {
   if ! strings.HasPrefix(urlPrefix, "/") {
     return nil, fmt.Errorf("URL prefix doesn't start in a slash.")
   }
   if ! strings.HasSuffix(urlPrefix, "/") {
     return nil, fmt.Errorf("URL prefix doesn't end in a slash.")
   }
-  if ! strings.HasSuffix(rootPath, "/") {
+  if ! strings.HasSuffix(rootDir, "/") {
     return nil, fmt.Errorf("Root path doesn't end in a slash.")
   }
   return &FileServer{
     scheduler: MakeScheduler(),
-    rootPath: rootPath,
+    rootDir: rootDir,
     urlPrefix: urlPrefix,
   }, nil
 }
 
-func (fs *FileServer) LockEntity(path string) error {
-  return fs.LockEntities([]string{path})
-}
-
-func (fs *FileServer) LockEntities(paths []string) error {
+func (fs *FileServer) Lock(paths []string) error {
   return fs.scheduler.WaitUntilAllAvailableUrgent(paths)
 }
 
-func (fs *FileServer) UnlockEntity(path string) {
-  fs.UnlockEntities([]string{path})
-}
-
-func (fs *FileServer) UnlockEntities(paths []string) {
+func (fs *FileServer) Unlock(paths []string) {
   fs.scheduler.DoneAll(paths)
 }
 
@@ -138,7 +130,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
       sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
-    if path == fs.rootPath {
+    if path == fs.rootDir {
       // If we just deleted the root directory, re-create it.
       err = os.Mkdir(path, os.ModePerm)
       if err != nil {
@@ -344,7 +336,7 @@ func (fs *FileServer) filePathFromURLPath(urlPath string) (string, error) {
   if !strings.HasPrefix(urlPath, fs.urlPrefix) {
     return "", errors.New("Path doesn't start with the correct prefix.")
   }
-  return fs.rootPath + urlPath[len(fs.urlPrefix):], nil
+  return fs.rootDir + urlPath[len(fs.urlPrefix):], nil
 }
 
 func (fs *FileServer) uniquePathFromURLPath(urlPath string) string {
