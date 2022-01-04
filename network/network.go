@@ -1,7 +1,9 @@
 package network
 
 import (
+  "errors"
   "io"
+  "io/ioutil"
   "net/http"
   "os"
   "path/filepath"
@@ -60,7 +62,7 @@ func ForwardRequestToURL(request *http.Request, URL string) (*http.Response, err
  *   }
  *
  */
-func ForwardResponseToClient(writer http.ResponseWriter, response *http.Response)
+func ForwardResponseToClient(writer http.ResponseWriter, response *http.Response) {
   headersToRelay := writer.Header()
   for key, value := range response.Header {
     for _, v := range value {
@@ -96,7 +98,7 @@ func SaveRequestBodyAsFile(request *http.Request, filePath string, overwrite boo
   if err != nil {
     return err
   }
-  err = ioutil.WriteFile(path, data, os.FileMode(0644))
+  err = ioutil.WriteFile(filePath, data, os.FileMode(0644))
   if err != nil {
     return err
   }
@@ -114,53 +116,74 @@ func SaveFormPostAsFiles(request *http.Request, dirPath string, sizeLimit int64)
   if err != nil {
     return err
   }
-  dir, file, err := IsDirFile(dirPath)
+  dir, file, err := isDirFile(dirPath)
   if err != nil {
     return err
   }
   if file {
-    sendError(writer, 400, "Internal Server Error: file exists at path")
-    return
+    return errors.New("Internal Server Error: file exists at path")
   }
   if ! dir {
     err = os.Mkdir(dirPath, os.ModePerm)
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
-      return
+      return err
     }
   }
   for newFileName, fileHeaders := range request.MultipartForm.File {
     for _, fileHeader := range fileHeaders {
       file, err := fileHeader.Open()
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
-        return
+        return err
       }
       defer file.Close()
       _, err = file.Seek(0, io.SeekStart)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
-        return
+        return err
       }
       err = os.MkdirAll(filepath.Dir(dirPath + "/" + fileHeader.Filename), 0755)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
-        return
+        return err
       }
       // Note, the old file name can be found with `fileHeader.Filename`.
       f, err := os.Create(filepath.Join(dirPath, newFileName))
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
-        return
+        return err
       }
       defer f.Close()
       _, err = io.Copy(f, file)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
-        return
+        return err
       }
     }
   }
-  sendError(writer, 200, "")
-  return
+  return nil
+}
+
+/*
+ * Checks whether a file or directory exists at the given path
+ * @param path the path to check
+ * @returns (whether the entity is a directory, whether the entity is a file, error)
+ *
+ * Exhaustive interpretations:
+ * (false, false, nil)    no entity exists here
+ * (true, false, nil)     a directory exists here
+ * (false, true, nil)     a file exists here
+ * (false, false, error)  an error occured
+ */
+func isDirFile(filePath string) (bool, bool, error) {
+  file, err := os.Open(filePath)
+  if os.IsNotExist(err) {
+    return false, false, nil
+  }
+  if err != nil {
+    return false, false, err
+  }
+  defer file.Close()
+
+  fileInfo, err := file.Stat()
+  if err != nil {
+    return false, false, err
+  }
+  rtn := fileInfo.IsDir()
+  return rtn, !rtn, nil
 }

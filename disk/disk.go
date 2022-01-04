@@ -1,11 +1,17 @@
 package disk
 
 import (
+  "archive/zip"
+  "encoding/hex"
   "errors"
   "fmt"
+  "hash"
   "io"
+  "io/ioutil"
   "net/http"
   "os"
+  "path"
+  "path/filepath"
   "strings"
 )
 
@@ -15,7 +21,7 @@ import (
  * @returns a list of children or an error 
  */
 func ChildrenOfDir(dirPath string) ([]string, error) {
-  files, err := ioutil.ReadDir(path)
+  files, err := ioutil.ReadDir(dirPath)
   if err != nil { return nil, err }
   rtn := []string{}
   for _, file := range files {
@@ -67,13 +73,13 @@ func CopyDir(fromPath string, toPath string) error {
 
   for _, f := range files {
     if f.IsDir() {
-      err = copyDir(fromPath + "/" + f.Name(), toPath + "/" + f.Name())
+      err = CopyDir(fromPath + "/" + f.Name(), toPath + "/" + f.Name())
       if err != nil {
         return err
       }
     }
     if !f.IsDir() {
-      err := copyFile(fromPath + "/" + f.Name(), toPath + "/" + f.Name())
+      err := CopyFile(fromPath + "/" + f.Name(), toPath + "/" + f.Name())
       if err != nil {
         return err
       }
@@ -94,7 +100,7 @@ func FileContentType(filePath string) (string, error) {
     return "", err
   }
   buffer := make([]byte, 512)
-  _, err := file.Read(buffer)
+  _, err = file.Read(buffer)
   if err != nil {
     return "", err
   }
