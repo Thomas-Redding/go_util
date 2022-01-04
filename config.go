@@ -1,5 +1,5 @@
-package util
+package go_util
 
 func Config() string {
-  return "util config"
+  return "go_util config"
 }
