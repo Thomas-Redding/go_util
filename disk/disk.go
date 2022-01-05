@@ -89,6 +89,26 @@ func CopyDir(fromPath string, toPath string) error {
 }
 
 /*
+ * Checks whether a file or directory exists at the given path
+ * @param entityPath the path to check
+ * @returns (whether the entity exists, error)
+ *
+ * Exhaustive interpretations:
+ * (false, nil)    no entity exists here
+ * (true, nil)     a file or directory exists here
+ * (false, error)  an error occured
+ */
+func Exists(entityPath string) (bool, error) {
+  _, err := os.Stat(entityPath)
+  if os.IsNotExist(err) {
+    return false, nil
+  } else if err != nil {
+    return false, err
+  }
+  return true, nil
+}
+
+/*
  * Guess the "Content-Type" of a file based on its first 512 bytes.
  * @param filePath the file to guess the content type of.
  * @returns the content type guess or an error
@@ -148,18 +168,11 @@ func FileHash(filePath string, hasher hash.Hash) (string, error) {
  * (false, true, nil)     a file exists here
  * (false, false, error)  an error occured
  */
-func IsDirFile(filePath string) (bool, bool, error) {
-  file, err := os.Open(filePath)
+func IsDirFile(entityPath string) (bool, bool, error) {
+  fileInfo, err := os.Stat(entityPath)
   if os.IsNotExist(err) {
     return false, false, nil
-  }
-  if err != nil {
-    return false, false, err
-  }
-  defer file.Close()
-
-  fileInfo, err := file.Stat()
-  if err != nil {
+  } else if err != nil {
     return false, false, err
   }
   rtn := fileInfo.IsDir()
