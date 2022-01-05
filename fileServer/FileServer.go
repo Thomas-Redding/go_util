@@ -66,7 +66,11 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
   }
 
   if request.Method == http.MethodGet || request.Method == http.MethodHead {
-    neededPath := fs.uniquePathFromURLPath(request.URL.Path)
+    neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
+    if err != nil {
+      sendError(writer, 400, "Bad Request: %v", err)
+      return
+    }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
     // Send the requested file.
@@ -111,10 +115,14 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     }
     return
   } else if request.Method == http.MethodPut {
-    neededPath := fs.uniquePathFromURLPath(request.URL.Path)
+    neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
+    if err != nil {
+      sendError(writer, 400, "Bad Request: %v", err)
+      return
+    }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
-    err := network.SaveRequestBodyAsFile(request, path, false)
+    err = network.SaveRequestBodyAsFile(request, path, false)
     if err != nil {
       sendError(writer, 500, "Internal Server Error: %v", err)
       return
@@ -122,10 +130,14 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     sendError(writer, 200, "")
     return
   } else if request.Method == http.MethodDelete {
-    neededPath := fs.uniquePathFromURLPath(request.URL.Path)
+    neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
+    if err != nil {
+      sendError(writer, 400, "Bad Request: %v", err)
+      return
+    }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
-    err := os.RemoveAll(path)
+    err = os.RemoveAll(path)
     if err != nil {
       sendError(writer, 500, "Internal Server Error: %v", err)
       return
@@ -141,10 +153,14 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     sendError(writer, 200, "")
     return
   } else if request.Method == http.MethodPost {
-    neededPath := fs.uniquePathFromURLPath(request.URL.Path)
+    neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
+    if err != nil {
+      sendError(writer, 400, "Bad Request: %v", err)
+      return
+    }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
-    err := network.SaveFormPostAsFiles(request, path, 100 << 20) // Size limit of 100 MB
+    err = network.SaveFormPostAsFiles(request, path, 100 << 20) // Size limit of 100 MB
     if err != nil {
       sendError(writer, 500, "Internal Server Error: %v", err)
       return
@@ -161,7 +177,25 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
     log.Printf("CMD: %s", patchRequestBody.Command)
-    neededPaths := []string{fs.uniquePathFromURLPath(request.URL.Path), fs.uniquePathFromURLPath(patchRequestBody.OtherPath)}
+    path1, err := fs.uniquePathFromURLPath(request.URL.Path)
+    if err != nil {
+      sendError(writer, 400, "Bad Request: %v", err)
+      return
+    }
+    var path2 string
+    if len(patchRequestBody.OtherPath) > 0 {
+      path2, err = fs.uniquePathFromURLPath(patchRequestBody.OtherPath)
+      if err != nil {
+        sendError(writer, 400, "Bad Request: %v", err)
+        return
+      }
+    }
+    var neededPaths []string
+    if len(path2) > 0 {
+      neededPaths = []string{path1, path2}
+    } else {
+      neededPaths = []string{path1}
+    }
     fs.scheduler.WaitUntilAllAvailable(neededPaths)
     defer fs.scheduler.DoneAll(neededPaths)
     if patchRequestBody.Command == "-d" {
@@ -339,8 +373,11 @@ func (fs *FileServer) filePathFromURLPath(urlPath string) (string, error) {
   return fs.rootDir + urlPath[len(fs.urlPrefix):], nil
 }
 
-func (fs *FileServer) uniquePathFromURLPath(urlPath string) string {
-  return urlPath[len(fs.urlPrefix):]
+func (fs *FileServer) uniquePathFromURLPath(urlPath string) (string, error) {
+  if !strings.HasPrefix(urlPath, fs.urlPrefix) {
+    return "", fmt.Errorf("Path did not start with url prefix: %s", urlPath)
+  }
+  return urlPath[len(fs.urlPrefix):], nil
 }
 
 func childrenOfDirText(path string) (string, error) {
