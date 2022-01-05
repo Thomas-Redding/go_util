@@ -2,6 +2,7 @@ package network
 
 import (
   "errors"
+  "fmt"
   "io"
   "io/ioutil"
   "net/http"
@@ -20,7 +21,7 @@ import (
 func ForwardRequestToURL(request *http.Request, URL string) (*http.Response, error) {
   proxyRequest, err := http.NewRequest(request.Method, URL, request.Body)
   if err != nil {
-    return nil, err
+    return nil, fmt.Errorf("Error constructing proxy request: %v", err)
   }
   proxyRequest.Header = make(http.Header)
   for key, value := range request.Header {
