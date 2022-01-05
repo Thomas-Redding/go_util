@@ -23,6 +23,7 @@ func ForwardRequestToURL(request *http.Request, URL string) (*http.Response, err
   if err != nil {
     return nil, fmt.Errorf("Error constructing proxy request: %v", err)
   }
+  proxyRequest.Close = request.Close
   proxyRequest.Header = make(http.Header)
   for key, value := range request.Header {
     proxyRequest.Header[key] = value
