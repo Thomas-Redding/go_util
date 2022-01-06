@@ -56,7 +56,7 @@ func (fs *FileServer) Unlock(paths []string) {
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
   fs.scheduler.LoggingEnabled = fs.LoggingEnabled
   if fs.LoggingEnabled {
-    log.Println(request.Method, request.URL.Path)
+    log.Println("FileServer.go", request.Method, request.URL.Path)
   }
   if !strings.HasPrefix(request.URL.Path, fs.urlPrefix) {
     fs.sendError(writer, 500, "Internal Server Error: Wrong Prefix")
@@ -181,7 +181,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
     if fs.LoggingEnabled {
-      log.Println("PATCH Body:", patchRequestBody)
+      log.Println("FileServer.go", "PATCH Body:", patchRequestBody)
     }
     path1, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
@@ -370,7 +370,7 @@ func copy(fromPath string, toPath string) error {
 
 func (fs *FileServer) sendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
   if fs.LoggingEnabled {
-    log.Println(errorCode, fmt.Sprintf(format, args...))
+    log.Println("FileServer.go", errorCode, fmt.Sprintf(format, args...))
   }
   http.Error(writer, fmt.Sprintf(format, args...), errorCode)
 }

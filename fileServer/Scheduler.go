@@ -48,7 +48,7 @@ func MakeScheduler() Scheduler {
           for _, path := range task.Paths {
             if rtn.fileTrie.ContainsPathOrParent(path) {
               if rtn.LoggingEnabled {
-                log.Println("Scheduler Locked", path)
+                log.Println("Scheduler.go Locked", path)
               }
               locked = true
               break
@@ -59,7 +59,7 @@ func MakeScheduler() Scheduler {
           }
           for _, path := range task.Paths {
             if rtn.LoggingEnabled {
-              log.Println("Scheduler Add", path)
+              log.Println("Scheduler.go Add", path)
             }
             rtn.fileTrie.Add(path)
           }
@@ -69,7 +69,7 @@ func MakeScheduler() Scheduler {
           // Task is done. Release all locks.
           for _, path := range task.Paths {
             if rtn.LoggingEnabled {
-              log.Println("Scheduler Remove", path)
+              log.Println("Scheduler.go Remove", path)
             }
             rtn.fileTrie.Remove(path)
           }
