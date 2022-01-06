@@ -25,6 +25,7 @@ type FileServer struct {
   scheduler Scheduler
   rootDir string
   urlPrefix string
+  LoggingEnabled bool
 }
 
 func MakeFileServer(rootDir string, urlPrefix string) (*FileServer, error) {
@@ -53,21 +54,24 @@ func (fs *FileServer) Unlock(paths []string) {
 }
 
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
+  if fs.LoggingEnabled {
+    log.Println(request.Method, request.URL.Path)
+  }
   if !strings.HasPrefix(request.URL.Path, fs.urlPrefix) {
-    sendError(writer, 500, "Internal Server Error: Wrong Prefix")
+    fs.sendError(writer, 500, "Internal Server Error: Wrong Prefix")
     return
   }
 
   path, err := fs.filePathFromURLPath(request.URL.Path)
   if err != nil {
-    sendError(writer, 400, "Bad Request")
+    fs.sendError(writer, 400, "Bad Request")
     return
   }
 
   if request.Method == http.MethodGet || request.Method == http.MethodHead {
     neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
-      sendError(writer, 400, "Bad Request: %v", err)
+      fs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
     fs.scheduler.WaitUntilAvailable(neededPath)
@@ -75,14 +79,14 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     // Send the requested file.
     file, err := os.Open(path)
     if err != nil {
-      sendError(writer, 404, "File Not Found: %v", err)
+      fs.sendError(writer, 404, "File Not Found: %v", err)
       return
     }
     defer file.Close()
 
     fileInfo, err := file.Stat();
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
 
@@ -100,7 +104,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
 
     response, err := childrenOfDirText(path)
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
     data := []byte(response)
@@ -116,75 +120,78 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
   } else if request.Method == http.MethodPut {
     neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
-      sendError(writer, 400, "Bad Request: %v", err)
+      fs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
     err = network.SaveRequestBodyAsFile(request, path, false)
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
-    sendError(writer, 200, "")
+    fs.sendError(writer, 200, "")
     return
   } else if request.Method == http.MethodDelete {
     neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
-      sendError(writer, 400, "Bad Request: %v", err)
+      fs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
     err = os.RemoveAll(path)
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
     if path == fs.rootDir {
       // If we just deleted the root directory, re-create it.
       err = os.Mkdir(path, os.ModePerm)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
     }
-    sendError(writer, 200, "")
+    fs.sendError(writer, 200, "")
     return
   } else if request.Method == http.MethodPost {
     neededPath, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
-      sendError(writer, 400, "Bad Request: %v", err)
+      fs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
     err = network.SaveFormPostAsFiles(request, path, 100 << 20) // Size limit of 100 MB
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
-    sendError(writer, 200, "")
+    fs.sendError(writer, 200, "")
     return
   } else if request.Method == http.MethodPatch {
     // We misappropriate "PATCH" requests to perform various "commands" server-side.
     data, err := ioutil.ReadAll(request.Body)
     if err != nil {
-      sendError(writer, 500, "Internal Server Error: %v", err)
+      fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
+    if fs.LoggingEnabled {
+      log.Println("PATCH Body:", patchRequestBody)
+    }
     path1, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
-      sendError(writer, 400, "Bad Request: %v", err)
+      fs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
     var path2 string
     if len(patchRequestBody.OtherPath) > 0 {
       path2, err = fs.uniquePathFromURLPath(patchRequestBody.OtherPath)
       if err != nil {
-        sendError(writer, 400, "Bad Request: %v", err)
+        fs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
     }
@@ -199,113 +206,113 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     if patchRequestBody.Command == "-d" {
       dir, _, err := disk.IsDirFile(path)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
       if dir {
-        sendError(writer, 200, "1")
+        fs.sendError(writer, 200, "1")
         return
       } else {
-        sendError(writer, 200, "")
+        fs.sendError(writer, 200, "")
         return
       }
     } else if patchRequestBody.Command == "mv" {
       otherPath, err := fs.filePathFromURLPath(patchRequestBody.OtherPath)
       if err != nil {
-        sendError(writer, 400, "Bad Request: %v", err)
+        fs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
       err = os.Rename(path, otherPath)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
-      sendError(writer, 200, "")
+      fs.sendError(writer, 200, "")
       return
     } else if (patchRequestBody.Command == "cp") {
       otherPath, err := fs.filePathFromURLPath(patchRequestBody.OtherPath)
       if err != nil {
-        sendError(writer, 400, "Bad Request: %v", err)
+        fs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
       err = copy(path, otherPath)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
-      sendError(writer, 200, "")
+      fs.sendError(writer, 200, "")
       return
     } else if (patchRequestBody.Command == "zip") {
       otherPath, err := fs.filePathFromURLPath(patchRequestBody.OtherPath)
       if err != nil {
-        sendError(writer, 400, "Bad Request: %v", err)
+        fs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
       if !strings.HasSuffix(otherPath, ".zip") {
-        sendError(writer, 400, "Bad Request: second path must end in \".zip\"")
+        fs.sendError(writer, 400, "Bad Request: second path must end in \".zip\"")
         return
       }
       doesExist, err := exists(otherPath)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
       if doesExist {
-        sendError(writer, 400, "Bad Request: Item exists at path.")
+        fs.sendError(writer, 400, "Bad Request: Item exists at path.")
         return
       }
       dir, _, err := disk.IsDirFile(path)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
       if dir {
         err = disk.ZipDir(path, otherPath)
         if err != nil {
-          sendError(writer, 500, "Internal Server Error: %v", err)
+          fs.sendError(writer, 500, "Internal Server Error: %v", err)
           return
         }
-        sendError(writer, 200, "")
+        fs.sendError(writer, 200, "")
         return
       } else {
         err = disk.ZipFile(path, otherPath)
         if err != nil {
-          sendError(writer, 500, "Internal Server Error: %v", err)
+          fs.sendError(writer, 500, "Internal Server Error: %v", err)
           return
         }
-        sendError(writer, 200, "")
+        fs.sendError(writer, 200, "")
         return
       }
     } else if (patchRequestBody.Command == "unzip") {
       if !strings.HasSuffix(path, ".zip") {
-        sendError(writer, 400, "Bad Request: second path must end in \".zip\"")
+        fs.sendError(writer, 400, "Bad Request: second path must end in \".zip\"")
         return
       }
       otherPath, err := fs.filePathFromURLPath(patchRequestBody.OtherPath)
       if err != nil {
-        sendError(writer, 400, "Bad Request: %v", err)
+        fs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
       doesExist, err := exists(otherPath)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
       if doesExist {
-        sendError(writer, 400, "Bad Request: entity exists at destination")
+        fs.sendError(writer, 400, "Bad Request: entity exists at destination")
         return
       }
       err = disk.Unzip(path, otherPath)
       if err != nil {
-        sendError(writer, 400, "Internal Server Error: %v", err)
+        fs.sendError(writer, 400, "Internal Server Error: %v", err)
         return
       }
-      sendError(writer, 200, "")
+      fs.sendError(writer, 200, "")
       return
     } else if (patchRequestBody.Command == "ls") {
       response, err := childrenOfDirText(path)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
       data := []byte(response)
@@ -317,10 +324,10 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     } else if patchRequestBody.Command == "mkdir" {
       err := os.Mkdir(path, 0755)
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       }
-      sendError(writer, 200, "")
+      fs.sendError(writer, 200, "")
       return
     } else if patchRequestBody.Command == "md5" || patchRequestBody.Command == "sha256" {
       var val string
@@ -330,21 +337,21 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
         val, err = disk.FileHash(path, sha256.New())
       }
       if err != nil {
-        sendError(writer, 500, "Internal Server Error: %v", err)
+        fs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
       } else {
-        sendError(writer, 200, "%s", val)
+        fs.sendError(writer, 200, "%s", val)
         return
       }
     } else {
-      sendError(writer, 400, "Bad Request: Unsupported PATCH command")
+      fs.sendError(writer, 400, "Bad Request: Unsupported PATCH command")
       return
     }
   } else {
-    sendError(writer, 400, "Bad Request: Unsupported Method")
+    fs.sendError(writer, 400, "Bad Request: Unsupported Method")
     return
   }
-  sendError(writer, 500, "Internal Server Error: Could not handle.")
+  fs.sendError(writer, 500, "Internal Server Error: Could not handle.")
   return
 }
 
@@ -360,7 +367,10 @@ func copy(fromPath string, toPath string) error {
   }
 }
 
-func sendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
+func (fs *FileServer) sendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
+  if fs.LoggingEnabled {
+    log.Println(errorCode, fmt.Sprintf(format, args...))
+  }
   http.Error(writer, fmt.Sprintf(format, args...), errorCode)
 }
 
