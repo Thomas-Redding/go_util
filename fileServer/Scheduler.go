@@ -39,7 +39,7 @@ func MakeScheduler() Scheduler {
   }()
   go func() {
     for {
-      time.Sleep(time.Millisecond) // TODO: Make time.Millisecond
+      time.Sleep(time.Millisecond)
       for rtn.priorityQueue.Length() != 0 {
         task := rtn.priorityQueue.Peek().(*Task)
         if !task.IsComplete {
