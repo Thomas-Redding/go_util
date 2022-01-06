@@ -9,7 +9,6 @@ import (
 /********** Scheduler **********/
 
 type Scheduler struct {
-  lockedPaths PathNode
   fileTrie FileTrie
   startChannel chan *Task
   endChannel chan *Task

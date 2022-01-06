@@ -4,6 +4,23 @@ import (
   "strings"
 )
 
+/*
+ * For all operations, if `filePath` doesn't begin with a forward slash, one is
+ * added.
+ * 
+ * ft.Add(filePath)
+ * Add a file or directory to the FileTrie.
+ *
+ * ft.ContainsPathOrParent(filePath) bool
+ * Returns `true` if and only if either the given file has been added or a
+ * directory containing that file has been added.
+ *
+ * ft.Length() int
+ * Returns the number of files in the FileTrie.
+ *
+ * ft.Remove(filePath) bool
+ * Remove the given file from the FileTrie or silently fail.
+ */
 
 type PathNode struct {
   name string
@@ -22,6 +39,9 @@ func MakeFileTrie() FileTrie {
 }
 
 func (trie *FileTrie)Add(filePath string) {
+  if !strings.HasPrefix(string, "/") {
+    filePath = "/" + filePath
+  }
   path := strings.Split(filePath, "/")
   node := trie.root
   for i, part := range path {
@@ -38,6 +58,9 @@ func (trie *FileTrie)Add(filePath string) {
 }
 
 func (trie *FileTrie)ContainsPathOrParent(filePath string) bool {
+  if !strings.HasPrefix(string, "/") {
+    filePath = "/" + filePath
+  }
   path := strings.Split(filePath, "/")
   node := trie.root
   for _, part := range path {
@@ -57,6 +80,9 @@ func (trie *FileTrie)Length() int {
 }
 
 func (trie *FileTrie)Remove(filePath string) bool {
+  if !strings.HasPrefix(string, "/") {
+    filePath = "/" + filePath
+  }
   path := strings.Split(filePath, "/")
   node := trie.root
   for i, part := range path {
@@ -93,7 +119,7 @@ func fullPathFromNode(node *PathNode) string {
   for i, j := 0, len(rtn)-1; i < j; i, j = i+1, j-1 {
     rtn[i], rtn[j] = rtn[j], rtn[i]
   }
-  return strings.Join(rtn, "/")
+  return "/" + strings.Join(rtn, "/")
 }
 
 func makeNode(name string, parent *PathNode, exists bool) *PathNode {
