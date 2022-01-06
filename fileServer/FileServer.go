@@ -53,7 +53,6 @@ func (fs *FileServer) Unlock(paths []string) {
 }
 
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
-  log.Printf("%s %s", request.Method, request.URL.Path)
   if !strings.HasPrefix(request.URL.Path, fs.urlPrefix) {
     sendError(writer, 500, "Internal Server Error: Wrong Prefix")
     return
@@ -176,7 +175,6 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     }
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
-    log.Printf("CMD: %s", patchRequestBody.Command)
     path1, err := fs.uniquePathFromURLPath(request.URL.Path)
     if err != nil {
       sendError(writer, 400, "Bad Request: %v", err)
