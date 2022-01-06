@@ -86,6 +86,9 @@ func (scheduler *Scheduler) WaitUntilAvailable(path string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
+  if (scheduler.LoggingEnabled) {
+    log.Println("Scheduler.go WaitUntilAllAvailable", paths)
+  }
   task := MakeTask(paths, time.Now().UnixNano(), false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
@@ -93,6 +96,9 @@ func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
+  if (scheduler.LoggingEnabled) {
+    log.Println("Scheduler.go WaitUntilAllAvailable", paths)
+  }
   task := MakeTask(paths, -1, false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
@@ -108,6 +114,9 @@ func (scheduler *Scheduler) Done(path string) {
 }
 
 func (scheduler *Scheduler) DoneAll(paths []string) {
+  if (scheduler.LoggingEnabled) {
+    log.Println("Scheduler.go WaitUntilAllAvailable", paths)
+  }
   task := MakeTask(paths, 0, true)
   task.IsComplete = true
   scheduler.endChannel <- task
