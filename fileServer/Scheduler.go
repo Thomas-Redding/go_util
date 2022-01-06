@@ -2,6 +2,7 @@ package fileServer
 
 import (
   "errors"
+  "log"
   "time"
 )
 
@@ -13,6 +14,7 @@ type Scheduler struct {
   startChannel chan *Task
   endChannel chan *Task
   priorityQueue TaskPriorityQueue
+  LoggingEnabled bool
 }
 
 func MakeScheduler() Scheduler {
@@ -45,6 +47,9 @@ func MakeScheduler() Scheduler {
           locked := false
           for _, path := range task.Paths {
             if rtn.fileTrie.ContainsPathOrParent(path) {
+              if rtn.LoggingEnabled {
+                log.Println("Scheduler Locked", path)
+              }
               locked = true
               break
             }
@@ -53,6 +58,9 @@ func MakeScheduler() Scheduler {
             break
           }
           for _, path := range task.Paths {
+            if rtn.LoggingEnabled {
+              log.Println("Scheduler Add", path)
+            }
             rtn.fileTrie.Add(path)
           }
           task.ContinueChannel <- true
@@ -60,6 +68,9 @@ func MakeScheduler() Scheduler {
         } else {
           // Task is done. Release all locks.
           for _, path := range task.Paths {
+            if rtn.LoggingEnabled {
+              log.Println("Scheduler Remove", path)
+            }
             rtn.fileTrie.Remove(path)
           }
           rtn.priorityQueue.Pop()

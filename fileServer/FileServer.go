@@ -54,6 +54,7 @@ func (fs *FileServer) Unlock(paths []string) {
 }
 
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
+  fs.scheduler.LoggingEnabled = fs.LoggingEnabled
   if fs.LoggingEnabled {
     log.Println(request.Method, request.URL.Path)
   }
