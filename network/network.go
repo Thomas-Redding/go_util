@@ -111,54 +111,57 @@ func SaveRequestBodyAsFile(request *http.Request, filePath string, overwrite boo
  * Saves the contents of a POST request to disk.
  * @param request the request with the POST data
  * @param dirPath the root directory to save the POST data to
+ * @returns a list of successfully saved file names and an error
  */
-func SaveFormPostAsFiles(request *http.Request, dirPath string, sizeLimit int64) error {
+func SaveFormPostAsFiles(request *http.Request, dirPath string, sizeLimit int64) ([]string, error) {
   // https://freshman.tech/file-upload-golang/
   err := request.ParseMultipartForm(sizeLimit)
   if err != nil {
-    return err
+    return []string{}, err
   }
   dir, file, err := isDirFile(dirPath)
   if err != nil {
-    return err
+    return []string{}, err
   }
   if file {
-    return errors.New("Internal Server Error: file exists at path")
+    return []string{}, errors.New("Internal Server Error: file exists at path")
   }
   if ! dir {
     err = os.Mkdir(dirPath, os.ModePerm)
     if err != nil {
-      return err
+      return []string{}, err
     }
   }
+  var saveFiles []string
   for newFileName, fileHeaders := range request.MultipartForm.File {
     for _, fileHeader := range fileHeaders {
       file, err := fileHeader.Open()
       if err != nil {
-        return err
+        return saveFiles, err
       }
       defer file.Close()
       _, err = file.Seek(0, io.SeekStart)
       if err != nil {
-        return err
+        return saveFiles, err
       }
       err = os.MkdirAll(filepath.Dir(dirPath + "/" + fileHeader.Filename), 0755)
       if err != nil {
-        return err
+        return saveFiles, err
       }
       // Note, the old file name can be found with `fileHeader.Filename`.
       f, err := os.Create(filepath.Join(dirPath, newFileName))
       if err != nil {
-        return err
+        return saveFiles, err
       }
       defer f.Close()
       _, err = io.Copy(f, file)
       if err != nil {
-        return err
+        return saveFiles, err
       }
+      saveFiles = append(saveFiles, fileHeader.Filename)
     }
   }
-  return nil
+  return saveFiles, nil
 }
 
 /*
