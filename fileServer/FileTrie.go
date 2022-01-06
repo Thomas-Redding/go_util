@@ -39,7 +39,7 @@ func MakeFileTrie() FileTrie {
 }
 
 func (trie *FileTrie)Add(filePath string) {
-  if !strings.HasPrefix(string, "/") {
+  if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
   path := strings.Split(filePath, "/")
@@ -58,7 +58,7 @@ func (trie *FileTrie)Add(filePath string) {
 }
 
 func (trie *FileTrie)ContainsPathOrParent(filePath string) bool {
-  if !strings.HasPrefix(string, "/") {
+  if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
   path := strings.Split(filePath, "/")
@@ -80,7 +80,7 @@ func (trie *FileTrie)Length() int {
 }
 
 func (trie *FileTrie)Remove(filePath string) bool {
-  if !strings.HasPrefix(string, "/") {
+  if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
   path := strings.Split(filePath, "/")
