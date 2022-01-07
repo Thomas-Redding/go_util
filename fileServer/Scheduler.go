@@ -98,7 +98,7 @@ func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
   if (scheduler.loggingEnabled) {
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
-  task := MakeTask(paths, -1, false)
+  task := MakeTask(paths, 0, false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
   if shouldContinue {
@@ -116,7 +116,7 @@ func (scheduler *Scheduler) DoneAll(paths []string) {
   if (scheduler.loggingEnabled) {
     log.Println("Scheduler.go DoneAll", paths)
   }
-  task := MakeTask(paths, 0, true)
+  task := MakeTask(paths, -1, true)
   task.IsComplete = true
   scheduler.endChannel <- task
 }
