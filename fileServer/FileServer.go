@@ -164,7 +164,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     }
     fs.scheduler.WaitUntilAvailable(neededPath)
     defer fs.scheduler.Done(neededPath)
-    err = network.SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
+    _, err = network.SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
     if err != nil {
       fs.sendError(writer, 500, "Internal Server Error: %v", err)
       return
