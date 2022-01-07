@@ -96,25 +96,25 @@ func MakeScheduler() Scheduler {
   return rtn
 }
 
-func (scheduler *Scheduler) WaitUntilAvailable(path string) bool {
-  return scheduler.WaitUntilAllAvailable([]string{path})
+func (scheduler *Scheduler) WaitUntilAvailable(routineId string, path string) bool {
+  return scheduler.WaitUntilAllAvailable(routineId, []string{path})
 }
 
-func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
+func (scheduler *Scheduler) WaitUntilAllAvailable(routineId string, paths []string) bool {
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailable", paths)
   }
-  task := MakeTask(paths, time.Now().UnixNano(), false)
+  task := MakeTask(routineId, paths, time.Now().UnixNano(), false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
   return shouldContinue
 }
 
-func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
+func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(routineId string, paths []string) error {
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
-  task := MakeTask(paths, time.Now().UnixNano() / 2, false)
+  task := MakeTask(routineId, paths, time.Now().UnixNano() / 2, false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
   if shouldContinue {
@@ -124,15 +124,15 @@ func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
   }
 }
 
-func (scheduler *Scheduler) Done(path string) {
-  scheduler.DoneAll([]string{path})
+func (scheduler *Scheduler) Done(routineId string, path string) {
+  scheduler.DoneAll(routineId, []string{path})
 }
 
-func (scheduler *Scheduler) DoneAll(paths []string) {
+func (scheduler *Scheduler) DoneAll(routineId string, paths []string) {
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go DoneAll", paths)
   }
-  task := MakeTask(paths, -1, true)
+  task := MakeTask(routineId, paths, -1, true)
   task.IsComplete = true
   scheduler.endChannel <- task
 }
