@@ -13,7 +13,7 @@ type Scheduler struct {
   startChannel chan *Task
   endChannel chan *Task
   priorityQueue TaskPriorityQueue
-  loggingEnabled bool
+  loggingEnabled uint
 }
 
 func MakeScheduler() Scheduler {
@@ -27,12 +27,18 @@ func MakeScheduler() Scheduler {
   // Add tasks to the priority queue
   go func() {
     for task := range rtn.startChannel {
+      if rtn.loggingEnabled > 2 {
+        log.Println("Scheduler.go startChannel", task.IsComplete, task.Priority, task.Paths)
+      }
       rtn.priorityQueue.Push(task)
     }
   }()
   // Add task completions to the priority queue
   go func() {
     for task := range rtn.endChannel {
+      if rtn.loggingEnabled > 2 {
+        log.Println("Scheduler.go endChannel", task.IsComplete, task.Priority, task.Paths)
+      }
       rtn.priorityQueue.Push(task)
     }
   }()
@@ -41,6 +47,9 @@ func MakeScheduler() Scheduler {
     for {
       counter = (counter + 1) % 1000
       time.Sleep(time.Millisecond)
+      if rtn.loggingEnabled > 2 {
+        log.Println("Scheduler.go loop", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
+      }
       for rtn.priorityQueue.Length() != 0 {
         task := rtn.priorityQueue.Peek().(*Task)
         if !task.IsComplete {
@@ -48,7 +57,7 @@ func MakeScheduler() Scheduler {
           locked := false
           for _, path := range task.Paths {
             if rtn.fileTrie.ContainsPathOrParent(path) {
-              if rtn.loggingEnabled {
+              if rtn.loggingEnabled > 1 {
                 log.Println("Scheduler.go Locked", path)
               }
               locked = true
@@ -57,12 +66,14 @@ func MakeScheduler() Scheduler {
           }
           if locked {
             if counter == 0 {
-              log.Println("Scheduler.go locked", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
+              if rtn.loggingEnabled > 2 {
+                log.Println("Scheduler.go locked")
+              }
             }
             break
           }
           for _, path := range task.Paths {
-            if rtn.loggingEnabled {
+            if rtn.loggingEnabled > 1 {
               log.Println("Scheduler.go Add", path)
             }
             rtn.fileTrie.Add(path)
@@ -72,7 +83,7 @@ func MakeScheduler() Scheduler {
         } else {
           // Task is done. Release all locks.
           for _, path := range task.Paths {
-            if rtn.loggingEnabled {
+            if rtn.loggingEnabled > 1 {
               log.Println("Scheduler.go Remove", path)
             }
             rtn.fileTrie.Remove(path)
@@ -90,7 +101,7 @@ func (scheduler *Scheduler) WaitUntilAvailable(path string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
-  if (scheduler.loggingEnabled) {
+  if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailable", paths)
   }
   task := MakeTask(paths, time.Now().UnixNano(), false)
@@ -100,10 +111,10 @@ func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
-  if (scheduler.loggingEnabled) {
+  if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
-  task := MakeTask(paths, 0, false)
+  task := MakeTask(paths, time.Now().UnixNano() / 2, false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
   if shouldContinue {
@@ -118,7 +129,7 @@ func (scheduler *Scheduler) Done(path string) {
 }
 
 func (scheduler *Scheduler) DoneAll(paths []string) {
-  if (scheduler.loggingEnabled) {
+  if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go DoneAll", paths)
   }
   task := MakeTask(paths, -1, true)

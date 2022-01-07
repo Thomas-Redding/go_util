@@ -25,7 +25,7 @@ type FileServer struct {
   scheduler Scheduler
   rootDir string
   urlPrefix string
-  loggingEnabled bool
+  loggingEnabled uint
 }
 
 func MakeFileServer(rootDir string, urlPrefix string) (*FileServer, error) {
@@ -46,24 +46,40 @@ func MakeFileServer(rootDir string, urlPrefix string) (*FileServer, error) {
 }
 
 func (fs *FileServer) Lock(paths []string) error {
+  if fs.loggingEnabled > 0 {
+    log.Println("FileServer.go", "Lock", paths)
+  }
   return fs.scheduler.WaitUntilAllAvailableUrgent(paths)
 }
 
 func (fs *FileServer) Unlock(paths []string) {
+  if fs.loggingEnabled > 0 {
+    log.Println("FileServer.go", "Unlock", paths)
+  }
   fs.scheduler.DoneAll(paths)
 }
 
-func (fs *FileServer) GetLoggingEnabled() bool {
+// 0 = none
+// 1 = API calls
+// 2 = info logs
+// 3 = debug logs
+func (fs *FileServer) GetLoggingEnabled() uint {
+  if fs.loggingEnabled > 0 {
+    log.Println("FileServer.go", "GetLoggingEnabled")
+  }
   return fs.loggingEnabled
 }
 
-func (fs *FileServer) SetLoggingEnabled(loggingEnabled bool) {
+func (fs *FileServer) SetLoggingEnabled(loggingEnabled uint) {
+  if fs.loggingEnabled > 0 {
+    log.Println("FileServer.go", "SetLoggingEnabled")
+  }
   fs.loggingEnabled = loggingEnabled
   fs.scheduler.loggingEnabled = loggingEnabled
 }
 
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
-  if fs.loggingEnabled {
+  if fs.loggingEnabled > 0 {
     log.Println("FileServer.go", request.Method, request.URL.Path)
   }
   if !strings.HasPrefix(request.URL.Path, fs.urlPrefix) {
@@ -188,7 +204,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     }
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
-    if fs.loggingEnabled {
+    if fs.loggingEnabled > 0 {
       log.Println("FileServer.go", "PATCH Body:", patchRequestBody)
     }
     path1, err := fs.uniquePathFromURLPath(request.URL.Path)
@@ -377,7 +393,7 @@ func copy(fromPath string, toPath string) error {
 }
 
 func (fs *FileServer) sendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
-  if fs.loggingEnabled {
+  if fs.loggingEnabled > 0 {
     log.Println("FileServer.go", errorCode, fmt.Sprintf(format, args...))
   }
   http.Error(writer, fmt.Sprintf(format, args...), errorCode)
