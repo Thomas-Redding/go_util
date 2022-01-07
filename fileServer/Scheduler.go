@@ -60,8 +60,8 @@ func MakeScheduler() Scheduler {
           // Task needs to be done. Attempt to acquire locks.
           blocked := false
           for _, path := range task.Paths {
-            count, routineId := rtn.fileTrie.ContainsPathOrParent(path)
-            if count > 0 {
+            isLocked, routineId := rtn.fileTrie.IsPathLocked(path)
+            if isLocked {
               if routineId == task.RoutineId {
                 if rtn.loggingEnabled > 1 {
                   log.Println("Scheduler.go Share Lock", path)

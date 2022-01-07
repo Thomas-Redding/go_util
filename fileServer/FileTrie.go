@@ -64,20 +64,27 @@ func (trie *FileTrie)Add(filePath string, value string) {
   }
 }
 
-func (trie *FileTrie)ContainsPathOrParent(filePath string) (int, string) {
-  if !strings.HasPrefix(filePath, "/") {
-    filePath = "/" + filePath
+/*
+ * Returns (true, node.value) for the first node in the path with node.count > 0.
+ * Returns (false, "") otherwise.
+ */
+func (trie *FileTrie)IsPathLocked(path string) (bool, string) {
+  if !strings.HasPrefix(path, "/") {
+    path = "/" + path
   }
-  path := strings.Split(filePath, "/")
+  pathArr := strings.Split(path, "/")
   node := trie.root
-  for _, part := range path {
+  for _, part := range pathArr {
     val, ok := node.children[part]
-    if ok {
-      node = val
-      return node.count, node.value
+    if !ok {
+      break
     }
+    if val.count > 0 {
+      return true, val.value
+    }
+    node = val
   }
-  return 0, ""
+  return false, ""
 }
 
 func (trie *FileTrie)Length() int {
