@@ -37,7 +37,9 @@ func MakeScheduler() Scheduler {
     }
   }()
   go func() {
+    counter := 0
     for {
+      counter = (counter + 1) % 1000
       time.Sleep(time.Millisecond)
       for rtn.priorityQueue.Length() != 0 {
         task := rtn.priorityQueue.Peek().(*Task)
@@ -54,6 +56,9 @@ func MakeScheduler() Scheduler {
             }
           }
           if locked {
+            if counter == 0 {
+              log.Println("Scheduler.go locked", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
+            }
             break
           }
           for _, path := range task.Paths {
