@@ -28,15 +28,21 @@ func main() {
 
 func handle(writer http.ResponseWriter, request *http.Request) {
   if strings.HasPrefix(request.URL.Path, "/foo/") {
-    gFileServer.Handle(writer, request)
-    return
+    fs := gFileServer.Child()
+    fs.Handle(writer, request)
+  } else {
+    http.Error(writer, "Internal Server Error: Could not handle.", 500)
   }
-  sendError(writer, 500, "Internal Server Error: Could not handle.")
-  return
 }
 ```
 
-The `MakeFileServer()` method creates a new `FileServer` instance. It has two arguments: `rootDir` and `urlPath`.
+The `MakeFileServer()` method creates a new `FileServer` instance. It has two arguments: `rootDir` and `urlPath`. You should make exactly one "child" server for each goroutine.
+
+```golang
+fs := gFileServer.New()
+```
+
+If you don't, then, within that routine the recursive lock functionality *will not work*.
 
 The `Handle()` method is the bread and butter here. If you call it in a `http.server.handle()` method, it will take care of handling the request. It does this by taking the `request.URL.Path` and replacing the `urlPath` prefix with `rootDir` to determine the path of the relevant file or directory. In this way, `rootDir` and `urlPath` indicate the top-level directory the user should have access to in the file system and URL path, respectively.
 
