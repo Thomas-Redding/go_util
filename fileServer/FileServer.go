@@ -25,7 +25,7 @@ type FileServer struct {
   scheduler Scheduler
   rootDir string
   urlPrefix string
-  LoggingEnabled bool
+  loggingEnabled bool
 }
 
 func MakeFileServer(rootDir string, urlPrefix string) (*FileServer, error) {
@@ -53,9 +53,17 @@ func (fs *FileServer) Unlock(paths []string) {
   fs.scheduler.DoneAll(paths)
 }
 
+func (fs *FileServer) GetLoggingEnabled() bool {
+  return fs.loggingEnabled
+}
+
+func (fs *FileServer) SetLoggingEnabled(loggingEnabled bool) {
+  fs.loggingEnabled = loggingEnabled
+  fs.scheduler.loggingEnabled = loggingEnabled
+}
+
 func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) {
-  fs.scheduler.LoggingEnabled = fs.LoggingEnabled
-  if fs.LoggingEnabled {
+  if fs.loggingEnabled {
     log.Println("FileServer.go", request.Method, request.URL.Path)
   }
   if !strings.HasPrefix(request.URL.Path, fs.urlPrefix) {
@@ -180,7 +188,7 @@ func (fs *FileServer) Handle(writer http.ResponseWriter, request *http.Request) 
     }
     var patchRequestBody PatchRequestBody
     json.Unmarshal(data, &patchRequestBody)
-    if fs.LoggingEnabled {
+    if fs.loggingEnabled {
       log.Println("FileServer.go", "PATCH Body:", patchRequestBody)
     }
     path1, err := fs.uniquePathFromURLPath(request.URL.Path)
@@ -369,7 +377,7 @@ func copy(fromPath string, toPath string) error {
 }
 
 func (fs *FileServer) sendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
-  if fs.LoggingEnabled {
+  if fs.loggingEnabled {
     log.Println("FileServer.go", errorCode, fmt.Sprintf(format, args...))
   }
   http.Error(writer, fmt.Sprintf(format, args...), errorCode)

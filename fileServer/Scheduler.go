@@ -13,7 +13,7 @@ type Scheduler struct {
   startChannel chan *Task
   endChannel chan *Task
   priorityQueue TaskPriorityQueue
-  LoggingEnabled bool
+  loggingEnabled bool
 }
 
 func MakeScheduler() Scheduler {
@@ -46,7 +46,7 @@ func MakeScheduler() Scheduler {
           locked := false
           for _, path := range task.Paths {
             if rtn.fileTrie.ContainsPathOrParent(path) {
-              if rtn.LoggingEnabled {
+              if rtn.loggingEnabled {
                 log.Println("Scheduler.go Locked", path)
               }
               locked = true
@@ -57,7 +57,7 @@ func MakeScheduler() Scheduler {
             break
           }
           for _, path := range task.Paths {
-            if rtn.LoggingEnabled {
+            if rtn.loggingEnabled {
               log.Println("Scheduler.go Add", path)
             }
             rtn.fileTrie.Add(path)
@@ -67,7 +67,7 @@ func MakeScheduler() Scheduler {
         } else {
           // Task is done. Release all locks.
           for _, path := range task.Paths {
-            if rtn.LoggingEnabled {
+            if rtn.loggingEnabled {
               log.Println("Scheduler.go Remove", path)
             }
             rtn.fileTrie.Remove(path)
@@ -85,7 +85,7 @@ func (scheduler *Scheduler) WaitUntilAvailable(path string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
-  if (scheduler.LoggingEnabled) {
+  if (scheduler.loggingEnabled) {
     log.Println("Scheduler.go WaitUntilAllAvailable", paths)
   }
   task := MakeTask(paths, time.Now().UnixNano(), false)
@@ -95,7 +95,7 @@ func (scheduler *Scheduler) WaitUntilAllAvailable(paths []string) bool {
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(paths []string) error {
-  if (scheduler.LoggingEnabled) {
+  if (scheduler.loggingEnabled) {
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
   task := MakeTask(paths, -1, false)
@@ -113,7 +113,7 @@ func (scheduler *Scheduler) Done(path string) {
 }
 
 func (scheduler *Scheduler) DoneAll(paths []string) {
-  if (scheduler.LoggingEnabled) {
+  if (scheduler.loggingEnabled) {
     log.Println("Scheduler.go DoneAll", paths)
   }
   task := MakeTask(paths, 0, true)
