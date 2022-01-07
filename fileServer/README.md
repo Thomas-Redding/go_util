@@ -39,7 +39,7 @@ func handle(writer http.ResponseWriter, request *http.Request) {
 The `MakeFileServer()` method creates a new `FileServer` instance. It has two arguments: `rootDir` and `urlPath`. You should make exactly one "child" server for each goroutine.
 
 ```golang
-fs := gFileServer.New()
+fs := gFileServer.NewRoutine()
 ```
 
 If you don't, then, within that routine the recursive lock functionality *will not work*.
