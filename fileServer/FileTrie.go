@@ -1,6 +1,7 @@
 package fileServer
 
 import (
+  "errors"
   "strings"
 )
 
@@ -26,7 +27,8 @@ type PathNode struct {
   name string
   parent *PathNode
   children map[string]*PathNode
-  exists bool
+  count int
+  value string
 }
 
 type FileTrie struct {
@@ -35,10 +37,10 @@ type FileTrie struct {
 }
 
 func MakeFileTrie() FileTrie {
-  return FileTrie{root: makeNode("", nil, false), count: 0}
+  return FileTrie{root: makeImplicitNode("", nil), count: 0}
 }
 
-func (trie *FileTrie)Add(filePath string) {
+func (trie *FileTrie)Add(filePath string, value string) {
   if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
@@ -49,7 +51,12 @@ func (trie *FileTrie)Add(filePath string) {
     if ok {
       node = val
     } else {
-      newNode := makeNode(part, node, i == len(path) - 1)
+      var newNode *PathNode
+      if i == len(path) - 1 {
+        newNode = makeExplicitNode(part, node, value)
+      } else {
+        newNode = makeImplicitNode(part, node)
+      }
       trie.count += 1
       node.children[part] = newNode
       node = newNode
@@ -57,7 +64,7 @@ func (trie *FileTrie)Add(filePath string) {
   }
 }
 
-func (trie *FileTrie)ContainsPathOrParent(filePath string) bool {
+func (trie *FileTrie)ContainsPathOrParent(filePath string) (int, string) {
   if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
@@ -67,19 +74,17 @@ func (trie *FileTrie)ContainsPathOrParent(filePath string) bool {
     val, ok := node.children[part]
     if ok {
       node = val
-      if node.exists {
-        return true;
-      }
+      return node.count, node.value
     }
   }
-  return false
+  return 0, ""
 }
 
 func (trie *FileTrie)Length() int {
   return trie.count
 }
 
-func (trie *FileTrie)Remove(filePath string) bool {
+func (trie *FileTrie)Remove(filePath string) error {
   if !strings.HasPrefix(filePath, "/") {
     filePath = "/" + filePath
   }
@@ -91,22 +96,53 @@ func (trie *FileTrie)Remove(filePath string) bool {
       delete(node.children, part)
       trie.count -= 1
       for node.parent != nil {
-        if !node.exists && len(node.children) == 0 {
+        if node.count == 0 && len(node.children) == 0 {
           delete(node.parent.children, node.name)
           trie.count -= 1
         }
         node = node.parent
       }
-      return true;
+      return nil;
     }
     if ok {
       node = val
     } else {
-      return false;
+      return errors.New("FileTrie.go: Attempted to remove a file that wasn't here.");
     }
   }
-  // Impossible
-  return false;
+  return errors.New("FileTrie.go: This should never happen");
+}
+
+func (trie *FileTrie)RemoveWhileExpectingValue(filePath string, expectedValue string) error {
+  if !strings.HasPrefix(filePath, "/") {
+    filePath = "/" + filePath
+  }
+  path := strings.Split(filePath, "/")
+  node := trie.root
+  for i, part := range path {
+    val, ok := node.children[part]
+    if i == len(path) - 1 {
+      if val.value != expectedValue {
+        return errors.New("Value was unexpected")
+      }
+      delete(node.children, part)
+      trie.count -= 1
+      for node.parent != nil {
+        if node.count == 0 && len(node.children) == 0 {
+          delete(node.parent.children, node.name)
+          trie.count -= 1
+        }
+        node = node.parent
+      }
+      return nil;
+    }
+    if ok {
+      node = val
+    } else {
+      return errors.New("FileTrie.go: Attempted to remove a file that wasn't here.");
+    }
+  }
+  return errors.New("FileTrie.go: This should never happen");
 }
 
 func fullPathFromNode(node *PathNode) string {
@@ -122,6 +158,10 @@ func fullPathFromNode(node *PathNode) string {
   return "/" + strings.Join(rtn, "/")
 }
 
-func makeNode(name string, parent *PathNode, exists bool) *PathNode {
-  return &PathNode{name: name, parent: parent, children: make(map[string]*PathNode, 0), exists: exists}
+func makeImplicitNode(name string, parent *PathNode) *PathNode {
+  return &PathNode{name: name, parent: parent, children: make(map[string]*PathNode, 0), count: 0, value: ""}
+}
+
+func makeExplicitNode(name string, parent *PathNode, value string) *PathNode {
+  return &PathNode{name: name, parent: parent, children: make(map[string]*PathNode, 0), count: 1, value: value}
 }

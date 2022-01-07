@@ -6,6 +6,10 @@ import (
   "time"
 )
 
+/*
+ * Scheduler supports recursive locks, but every lock must be matched by an unlock.
+ */
+
 /********** Scheduler **********/
 
 type Scheduler struct {
@@ -54,20 +58,28 @@ func MakeScheduler() Scheduler {
         task := rtn.priorityQueue.Peek().(*Task)
         if !task.IsComplete {
           // Task needs to be done. Attempt to acquire locks.
-          locked := false
+          blocked := false
           for _, path := range task.Paths {
-            if rtn.fileTrie.ContainsPathOrParent(path) {
-              if rtn.loggingEnabled > 1 {
-                log.Println("Scheduler.go Locked", path)
+            count, routineId := rtn.fileTrie.ContainsPathOrParent(path)
+            if count > 0 {
+              if routineId == task.RoutineId {
+                if rtn.loggingEnabled > 1 {
+                  log.Println("Scheduler.go Share Lock", path)
+                }
+              } else  {
+                // File is locked by a different routine
+                if rtn.loggingEnabled > 1 {
+                  log.Println("Scheduler.go Locked", path)
+                }
+                blocked = true
+                break
               }
-              locked = true
-              break
             }
           }
-          if locked {
+          if blocked {
             if counter == 0 {
               if rtn.loggingEnabled > 2 {
-                log.Println("Scheduler.go locked")
+                log.Println("Scheduler.go blocked")
               }
             }
             break
@@ -76,7 +88,7 @@ func MakeScheduler() Scheduler {
             if rtn.loggingEnabled > 1 {
               log.Println("Scheduler.go Add", path)
             }
-            rtn.fileTrie.Add(path)
+            rtn.fileTrie.Add(path, task.RoutineId)
           }
           task.ContinueChannel <- true
           rtn.priorityQueue.Pop()
@@ -86,7 +98,10 @@ func MakeScheduler() Scheduler {
             if rtn.loggingEnabled > 1 {
               log.Println("Scheduler.go Remove", path)
             }
-            rtn.fileTrie.Remove(path)
+            err := rtn.fileTrie.RemoveWhileExpectingValue(path, task.RoutineId)
+            if err != nil && rtn.loggingEnabled > 1 {
+              log.Println("Scheduler.go Unlocking Problem", err)
+            }
           }
           rtn.priorityQueue.Pop()
         }
