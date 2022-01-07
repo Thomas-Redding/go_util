@@ -30,6 +30,18 @@ func ChildrenOfDir(dirPath string) ([]string, error) {
   return rtn, nil
 }
 
+func Copy(fromPath string, toPath string) error {
+  dir, _, err := IsDirFile(fromPath)
+  if err != nil {
+    return err
+  }
+  if dir {
+    return CopyDir(fromPath, toPath)
+  } else {
+    return CopyFile(fromPath, toPath)
+  }
+}
+
 func CopyFile(inPath string, outPath string) error {
   // https://opensource.com/article/18/6/copying-files-go
   inFile, err := os.Open(inPath)
@@ -180,6 +192,69 @@ func IsDirFile(entityPath string) (bool, bool, error) {
 }
 
 /*
+ * Unzip a zip file.
+ */
+func Unzip(zipFilePath string, destinationPath string) error {
+  // https://stackoverflow.com/a/24792688/4004969
+  r, err := zip.OpenReader(zipFilePath)
+  if err != nil {
+    return err
+  }
+  defer func() {
+    if err := r.Close(); err != nil {
+      panic(err)
+    }
+  }()
+  err = os.Mkdir(destinationPath, 0755)
+  if err != nil {
+    return err
+  }
+  // Closure to address file descriptors issue with all the deferred .Close() methods
+  extractAndWriteFile := func(f *zip.File) error {
+    rc, err := f.Open()
+    if err != nil {
+      return err
+    }
+    defer func() {
+      if err := rc.Close(); err != nil {
+        panic(err)
+      }
+    }()
+    path := filepath.Join(destinationPath, f.Name)
+    // Check for ZipSlip (Directory traversal)
+    if !strings.HasPrefix(path, filepath.Clean(destinationPath) + string(os.PathSeparator)) {
+      return fmt.Errorf("illegal file path: %s", path)
+    }
+    if f.FileInfo().IsDir() {
+      os.MkdirAll(path, f.Mode())
+    } else {
+      os.MkdirAll(filepath.Dir(path), f.Mode())
+      f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+      if err != nil {
+        return err
+      }
+      defer func() {
+        if err := f.Close(); err != nil {
+          panic(err)
+        }
+      }()
+      _, err = io.Copy(f, rc)
+      if err != nil {
+        return err
+      }
+    }
+    return nil
+  }
+  for _, f := range r.File {
+    err := extractAndWriteFile(f)
+    if err != nil {
+      return err
+    }
+  }
+  return nil
+}
+
+/*
  * Zip a file.
  * @param filePath the file to compress
  * @param where to place the newly created ZIP file.
@@ -260,69 +335,6 @@ func ZipDir(dirPath string, zipFilePath string) error {
   err = filepath.Walk(dirPath, walker)
   if err != nil {
     return err
-  }
-  return nil
-}
-
-/*
- * Unzip a zip file.
- */
-func Unzip(zipFilePath string, destinationPath string) error {
-  // https://stackoverflow.com/a/24792688/4004969
-  r, err := zip.OpenReader(zipFilePath)
-  if err != nil {
-    return err
-  }
-  defer func() {
-    if err := r.Close(); err != nil {
-      panic(err)
-    }
-  }()
-  err = os.Mkdir(destinationPath, 0755)
-  if err != nil {
-    return err
-  }
-  // Closure to address file descriptors issue with all the deferred .Close() methods
-  extractAndWriteFile := func(f *zip.File) error {
-    rc, err := f.Open()
-    if err != nil {
-      return err
-    }
-    defer func() {
-      if err := rc.Close(); err != nil {
-        panic(err)
-      }
-    }()
-    path := filepath.Join(destinationPath, f.Name)
-    // Check for ZipSlip (Directory traversal)
-    if !strings.HasPrefix(path, filepath.Clean(destinationPath) + string(os.PathSeparator)) {
-      return fmt.Errorf("illegal file path: %s", path)
-    }
-    if f.FileInfo().IsDir() {
-      os.MkdirAll(path, f.Mode())
-    } else {
-      os.MkdirAll(filepath.Dir(path), f.Mode())
-      f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-      if err != nil {
-        return err
-      }
-      defer func() {
-        if err := f.Close(); err != nil {
-          panic(err)
-        }
-      }()
-      _, err = io.Copy(f, rc)
-      if err != nil {
-        return err
-      }
-    }
-    return nil
-  }
-  for _, f := range r.File {
-    err := extractAndWriteFile(f)
-    if err != nil {
-      return err
-    }
   }
   return nil
 }

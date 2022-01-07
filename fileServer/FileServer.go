@@ -4,8 +4,8 @@ import (
   "crypto/md5"
   "crypto/sha256"
   "encoding/json"
-  "errors"
   "fmt"
+  "hash"
   "io/ioutil"
   "log"
   "net/http"
@@ -29,6 +29,9 @@ type ChildFileServer struct {
 }
 
 func (cfs *ChildFileServer) Lock(paths []string) error {
+  for i, path := range paths {
+    paths[i] = cfs.parent.rootDir + path
+  }
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Lock", paths)
   }
@@ -36,11 +39,106 @@ func (cfs *ChildFileServer) Lock(paths []string) error {
 }
 
 func (cfs *ChildFileServer) Unlock(paths []string) {
+  for i, path := range paths {
+    paths[i] = cfs.parent.rootDir + path
+  }
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Unlock", paths)
   }
   cfs.parent.scheduler.DoneAll(cfs.routineId, paths)
 }
+
+/*
+ * The below methods simply wrap the `disk` methods with Lock() and Unlock()
+ */
+
+func (cfs *ChildFileServer) ChildrenOfDir(dirPath string) ([]string, error) {
+  dirPath = cfs.parent.rootDir + dirPath
+  cfs.Lock([]string{dirPath})
+  defer cfs.Unlock([]string{dirPath})
+  return disk.ChildrenOfDir(dirPath)
+}
+
+func (cfs *ChildFileServer) Copy(fromPath string, toPath string) error {
+  fromPath = cfs.parent.rootDir + fromPath
+  toPath = cfs.parent.rootDir + toPath
+  cfs.Lock([]string{fromPath, toPath})
+  defer cfs.Unlock([]string{fromPath, toPath})
+  return disk.Copy(fromPath, toPath)
+}
+
+func (cfs *ChildFileServer) CopyFile(fromPath string, toPath string) error {
+  fromPath = cfs.parent.rootDir + fromPath
+  toPath = cfs.parent.rootDir + toPath
+  cfs.Lock([]string{fromPath, toPath})
+  defer cfs.Unlock([]string{fromPath, toPath})
+  return disk.CopyFile(fromPath, toPath)
+}
+
+func (cfs *ChildFileServer) CopyDir(fromPath string, toPath string) error {
+  fromPath = cfs.parent.rootDir + fromPath
+  toPath = cfs.parent.rootDir + toPath
+  cfs.Lock([]string{fromPath, toPath})
+  defer cfs.Unlock([]string{fromPath, toPath})
+  return disk.CopyDir(fromPath, toPath)
+}
+
+func (cfs *ChildFileServer) Exists(path string) (bool, error) {
+  path = cfs.parent.rootDir + path
+  cfs.Lock([]string{path})
+  defer cfs.Unlock([]string{path})
+  return disk.Exists(path)
+}
+
+func (cfs *ChildFileServer) FileContentType(filePath string) (string, error) {
+  filePath = cfs.parent.rootDir + filePath
+  cfs.Lock([]string{filePath})
+  defer cfs.Unlock([]string{filePath})
+  return disk.FileContentType(filePath)
+}
+
+func (cfs *ChildFileServer) FileHash(filePath string, hasher hash.Hash) (string, error) {
+  filePath = cfs.parent.rootDir + filePath
+  cfs.Lock([]string{filePath})
+  defer cfs.Unlock([]string{filePath})
+  return disk.FileHash(filePath, hasher)
+}
+
+func (cfs *ChildFileServer) IsDirFile(path string) (bool, bool, error) {
+  path = cfs.parent.rootDir + path
+  cfs.Lock([]string{path})
+  defer cfs.Unlock([]string{path})
+  return disk.IsDirFile(path)
+}
+
+func (cfs *ChildFileServer) Unzip(zipFilePath string, destinationPath string) error {
+  zipFilePath = cfs.parent.rootDir + zipFilePath
+  destinationPath = cfs.parent.rootDir + destinationPath
+  cfs.Lock([]string{zipFilePath, destinationPath})
+  defer cfs.Unlock([]string{zipFilePath, destinationPath})
+  return disk.Unzip(zipFilePath, destinationPath)
+}
+
+func (cfs *ChildFileServer) ZipFile(filePath string, zipFilePath string) error {
+  filePath = cfs.parent.rootDir + filePath
+  zipFilePath = cfs.parent.rootDir + zipFilePath
+  cfs.Lock([]string{filePath, zipFilePath})
+  cfs.Unlock([]string{filePath, zipFilePath})
+  return disk.ZipFile(filePath, zipFilePath)
+}
+
+func (cfs *ChildFileServer) ZipDir(dirPath string, zipFilePath string) error {
+  dirPath = cfs.parent.rootDir + dirPath
+  zipFilePath = cfs.parent.rootDir + zipFilePath
+  cfs.Lock([]string{dirPath, zipFilePath})
+  cfs.Unlock([]string{dirPath, zipFilePath})
+  return disk.ZipDir(dirPath, zipFilePath)
+}
+
+
+/*
+ * Handle a request from FileUtil.py with appropriate locking.
+ */
 
 func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter, request *http.Request) {
   if cfs.parent.loggingEnabled > 0 {
@@ -193,7 +291,7 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
     cfs.parent.scheduler.WaitUntilAllAvailable(routineId, neededPaths)
     defer cfs.parent.scheduler.DoneAll(routineId, neededPaths)
     if patchRequestBody.Command == "-d" {
-      dir, _, err := disk.IsDirFile(path)
+      dir, _, err := cfs.IsDirFile(path)
       if err != nil {
         cfs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
@@ -224,7 +322,7 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
         cfs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
-      err = copy(path, otherPath)
+      err = cfs.Copy(path, otherPath)
       if err != nil {
         cfs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
@@ -241,7 +339,7 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
         cfs.sendError(writer, 400, "Bad Request: second path must end in \".zip\"")
         return
       }
-      doesExist, err := exists(otherPath)
+      doesExist, err := cfs.Exists(otherPath)
       if err != nil {
         cfs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
@@ -250,7 +348,7 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
         cfs.sendError(writer, 400, "Bad Request: Item exists at path.")
         return
       }
-      dir, _, err := disk.IsDirFile(path)
+      dir, _, err := cfs.IsDirFile(path)
       if err != nil {
         cfs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
@@ -282,7 +380,7 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
         cfs.sendError(writer, 400, "Bad Request: %v", err)
         return
       }
-      doesExist, err := exists(otherPath)
+      doesExist, err := cfs.Exists(otherPath)
       if err != nil {
         cfs.sendError(writer, 500, "Internal Server Error: %v", err)
         return
@@ -352,10 +450,11 @@ func (cfs *ChildFileServer) sendError(writer http.ResponseWriter, errorCode int,
 }
 
 func (cfs *ChildFileServer) filePathFromURLPath(urlPath string) (string, error) {
-  if !strings.HasPrefix(urlPath, cfs.parent.urlPrefix) {
-    return "", errors.New("Path doesn't start with the correct prefix.")
+  uniquePath, err := cfs.uniquePathFromURLPath(urlPath)
+  if err != nil {
+    return "", err
   }
-  return cfs.parent.rootDir + urlPath[len(cfs.parent.urlPrefix):], nil
+  return cfs.parent.rootDir + uniquePath, nil
 }
 
 func (cfs *ChildFileServer) uniquePathFromURLPath(urlPath string) (string, error) {
@@ -400,7 +499,7 @@ func MakeParentFileServer(rootDir string, urlPrefix string) (*ParentFileServer, 
   }, nil
 }
 
-func (pfs *ParentFileServer) New() *ChildFileServer {
+func (pfs *ParentFileServer) NewRoutine() *ChildFileServer {
   return &ChildFileServer{parent: pfs, routineId: uuid.NewString()}
 }
 
@@ -429,18 +528,6 @@ func (pfs *ParentFileServer) SetLoggingEnabled(loggingEnabled uint) {
 
 /********** Classless Functions **********/
 
-func copy(fromPath string, toPath string) error {
-  dir, _, err := disk.IsDirFile(fromPath)
-  if err != nil {
-    return err
-  }
-  if dir {
-    return disk.CopyDir(fromPath, toPath)
-  } else {
-    return disk.CopyFile(fromPath, toPath)
-  }
-}
-
 func childrenOfDirText(path string) (string, error) {
   children, err := disk.ChildrenOfDir(path)
   if err != nil {
@@ -455,15 +542,4 @@ func childrenOfDirText(path string) (string, error) {
     response = response + childName
   }
   return response, nil
-}
-
-func exists(path string) (bool, error) {
- _, err := os.Stat(path)
-  if os.IsNotExist(err) {
-    return false, nil
-  }
-  if err != nil {
-    return false, err
-  }
-  return true, nil;
 }
