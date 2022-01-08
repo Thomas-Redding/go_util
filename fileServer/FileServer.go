@@ -140,7 +140,7 @@ func (cfs *ChildFileServer) ZipDir(dirPath string, zipFilePath string) error {
  * Handle a request from FileUtil.py with appropriate locking.
  */
 
-func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter, request *http.Request) {
+func (cfs *ChildFileServer) Handle(writer http.ResponseWriter, request *http.Request) {
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Handle", request.Method, request.URL.Path)
   }
@@ -161,8 +161,8 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
       cfs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
-    cfs.parent.scheduler.WaitUntilAvailable(routineId, neededPath)
-    defer cfs.parent.scheduler.Done(routineId, neededPath)
+    cfs.parent.scheduler.WaitUntilAvailable(cfs.routineId, neededPath)
+    defer cfs.parent.scheduler.Done(cfs.routineId, neededPath)
     // Send the requested file.
     file, err := os.Open(path)
     if err != nil {
@@ -210,8 +210,8 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
       cfs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
-    cfs.parent.scheduler.WaitUntilAvailable(routineId, neededPath)
-    defer cfs.parent.scheduler.Done(routineId, neededPath)
+    cfs.parent.scheduler.WaitUntilAvailable(cfs.routineId, neededPath)
+    defer cfs.parent.scheduler.Done(cfs.routineId, neededPath)
     err = network.SaveRequestBodyAsFile(request, path, false)
     if err != nil {
       cfs.sendError(writer, 500, "Internal Server Error: %v", err)
@@ -225,8 +225,8 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
       cfs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
-    cfs.parent.scheduler.WaitUntilAvailable(routineId, neededPath)
-    defer cfs.parent.scheduler.Done(routineId, neededPath)
+    cfs.parent.scheduler.WaitUntilAvailable(cfs.routineId, neededPath)
+    defer cfs.parent.scheduler.Done(cfs.routineId, neededPath)
     err = os.RemoveAll(path)
     if err != nil {
       cfs.sendError(writer, 500, "Internal Server Error: %v", err)
@@ -248,8 +248,8 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
       cfs.sendError(writer, 400, "Bad Request: %v", err)
       return
     }
-    cfs.parent.scheduler.WaitUntilAvailable(routineId, neededPath)
-    defer cfs.parent.scheduler.Done(routineId, neededPath)
+    cfs.parent.scheduler.WaitUntilAvailable(cfs.routineId, neededPath)
+    defer cfs.parent.scheduler.Done(cfs.routineId, neededPath)
     _, err = network.SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
     if err != nil {
       cfs.sendError(writer, 500, "Internal Server Error: %v", err)
@@ -288,8 +288,8 @@ func (cfs *ChildFileServer) Handle(routineId string, writer http.ResponseWriter,
     } else {
       neededPaths = []string{path1}
     }
-    cfs.parent.scheduler.WaitUntilAllAvailable(routineId, neededPaths)
-    defer cfs.parent.scheduler.DoneAll(routineId, neededPaths)
+    cfs.parent.scheduler.WaitUntilAllAvailable(cfs.routineId, neededPaths)
+    defer cfs.parent.scheduler.DoneAll(cfs.routineId, neededPaths)
     if patchRequestBody.Command == "-d" {
       dir, _, err := cfs.IsDirFile(path)
       if err != nil {
