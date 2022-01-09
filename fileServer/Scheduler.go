@@ -52,10 +52,13 @@ func MakeScheduler() Scheduler {
       counter = (counter + 1) % 1000
       time.Sleep(time.Millisecond)
       if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go loop", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
+        log.Println("Scheduler.go loopA", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
       }
       for rtn.priorityQueue.Length() != 0 {
         task := rtn.priorityQueue.Peek().(*Task)
+        if rtn.loggingEnabled > 2 {
+          log.Println("Scheduler.go loopB", task)
+        }
         if !task.IsComplete {
           // Task needs to be done. Attempt to acquire locks.
           blocked := false

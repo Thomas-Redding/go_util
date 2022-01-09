@@ -29,21 +29,33 @@ type ChildFileServer struct {
 }
 
 func (cfs *ChildFileServer) Lock(paths []string) error {
-  for i, path := range paths {
-    paths[i] = cfs.parent.rootDir + path
-  }
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Lock", paths)
+  }
+  for i, path := range paths {
+    if strings.HasPrefix(path, "/") {
+      path = path[1:]
+    }
+    paths[i] = cfs.parent.rootDir + path
+  }
+  if cfs.parent.loggingEnabled > 1 {
+    log.Println("FileServer.go", "LockB", paths)
   }
   return cfs.parent.scheduler.WaitUntilAllAvailableUrgent(cfs.routineId, paths)
 }
 
 func (cfs *ChildFileServer) Unlock(paths []string) {
-  for i, path := range paths {
-    paths[i] = cfs.parent.rootDir + path
-  }
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Unlock", paths)
+  }
+  for i, path := range paths {
+    if strings.HasPrefix(path, "/") {
+      path = path[1:]
+    }
+    paths[i] = cfs.parent.rootDir + path
+  }
+  if cfs.parent.loggingEnabled > 1 {
+    log.Println("FileServer.go", "UnlockB", paths)
   }
   cfs.parent.scheduler.DoneAll(cfs.routineId, paths)
 }
