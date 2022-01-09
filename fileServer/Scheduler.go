@@ -164,11 +164,11 @@ func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(routineId string, paths 
   }
   task := MakeTask(routineId, paths, time.Now().UnixNano() / 2, false)
   if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_B", paths)
+    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_B", paths, scheduler, scheduler.startChannel)
   }
   scheduler.startChannel <- task
   if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_C", paths)
+    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_C", paths, scheduler, scheduler.startChannel)
   }
   shouldContinue := <- task.ContinueChannel
   if scheduler.loggingEnabled > 2 {
