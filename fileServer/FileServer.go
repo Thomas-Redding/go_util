@@ -527,9 +527,7 @@ func (pfs *ParentFileServer) GetLoggingEnabled() uint {
 }
 
 func (pfs *ParentFileServer) SetLoggingEnabled(loggingEnabled uint) {
-  if pfs.loggingEnabled > 0 {
-    log.Println("ParentFileServer.go", "SetLoggingEnabled")
-  }
+  log.Println("ParentFileServer.go", "SetLoggingEnabled", loggingEnabled)
   pfs.loggingEnabled = loggingEnabled
   pfs.scheduler.loggingEnabled = loggingEnabled
 }
