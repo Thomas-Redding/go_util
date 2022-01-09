@@ -30,20 +30,32 @@ func MakeScheduler() Scheduler {
 
   // Add tasks to the priority queue
   go func() {
+    if rtn.loggingEnabled > 2 {
+      log.Println("Scheduler.go startChannel start")
+    }
     for task := range rtn.startChannel {
       if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go startChannel", task.IsComplete, task.Priority, task.Paths)
+        log.Println("Scheduler.go startChannel tick", task.IsComplete, task.Priority, task.Paths)
       }
       rtn.priorityQueue.Push(task)
+    }
+    if rtn.loggingEnabled > 2 {
+      log.Println("Scheduler.go startChannel end")
     }
   }()
   // Add task completions to the priority queue
   go func() {
+    if rtn.loggingEnabled > 2 {
+      log.Println("Scheduler.go startChannel start")
+    }
     for task := range rtn.endChannel {
       if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go endChannel", task.IsComplete, task.Priority, task.Paths)
+        log.Println("Scheduler.go endChannel tick", task.IsComplete, task.Priority, task.Paths)
       }
       rtn.priorityQueue.Push(task)
+    }
+    if rtn.loggingEnabled > 2 {
+      log.Println("Scheduler.go startChannel end")
     }
   }()
   go func() {
@@ -52,7 +64,7 @@ func MakeScheduler() Scheduler {
       counter = (counter + 1) % 1000
       time.Sleep(time.Millisecond)
       if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go loopA", rtn.priorityQueue.Length(), rtn.fileTrie.Length())
+        log.Println("Scheduler.go loopA", counter, rtn.priorityQueue.Length(), rtn.fileTrie.Length())
       }
       for rtn.priorityQueue.Length() != 0 {
         task := rtn.priorityQueue.Peek().(*Task)
