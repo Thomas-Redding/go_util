@@ -27,36 +27,17 @@ func MakeScheduler() Scheduler {
     endChannel: make(chan *Task, 0),
     priorityQueue: makeTaskPriorityQueue(),
   }
-  rtn.loggingEnabled = 5
 
   // Add tasks to the priority queue
   go func() {
-    if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go startChannel start")
-    }
     for task := range rtn.startChannel {
-      if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go startChannel tick", task.IsComplete, task.Priority, task.Paths)
-      }
       rtn.priorityQueue.Push(task)
-    }
-    if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go startChannel end")
     }
   }()
   // Add task completions to the priority queue
   go func() {
-    if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go endChannel start")
-    }
     for task := range rtn.endChannel {
-      if rtn.loggingEnabled > 2 {
-        log.Println("Scheduler.go endChannel tick", task.IsComplete, task.Priority, task.Paths)
-      }
       rtn.priorityQueue.Push(task)
-    }
-    if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go endChannel end")
     }
   }()
   go func() {
@@ -64,7 +45,7 @@ func MakeScheduler() Scheduler {
     for {
       counter = (counter + 1) % 1000
       time.Sleep(time.Millisecond)
-      if rtn.loggingEnabled > 2 {
+      if rtn.loggingEnabled > 3 {
         log.Println("Scheduler.go loopA", counter, rtn.priorityQueue.Length(), rtn.fileTrie.Length())
       }
       for rtn.priorityQueue.Length() != 0 {
@@ -82,12 +63,12 @@ func MakeScheduler() Scheduler {
             isLocked, routineId := rtn.fileTrie.IsPathLocked(path)
             if isLocked {
               if routineId == task.RoutineId {
-                if rtn.loggingEnabled > 1 {
+                if rtn.loggingEnabled > 2 {
                   log.Println("Scheduler.go Share Lock", path)
                 }
               } else  {
                 // File is locked by a different routine
-                if rtn.loggingEnabled > 1 {
+                if rtn.loggingEnabled > 2 {
                   log.Println("Scheduler.go Locked", path)
                 }
                 blocked = true
@@ -107,7 +88,7 @@ func MakeScheduler() Scheduler {
             log.Println("Scheduler.go not blocked", task)
           }
           for _, path := range task.Paths {
-            if rtn.loggingEnabled > 1 {
+            if rtn.loggingEnabled > 2 {
               log.Println("Scheduler.go Add", path)
             }
             rtn.fileTrie.Add(path, task.RoutineId)
@@ -120,11 +101,11 @@ func MakeScheduler() Scheduler {
             log.Println("Scheduler.go task is done", task)
           }
           for _, path := range task.Paths {
-            if rtn.loggingEnabled > 1 {
+            if rtn.loggingEnabled > 2 {
               log.Println("Scheduler.go Remove", path)
             }
             err := rtn.fileTrie.RemoveWhileExpectingValue(path, task.RoutineId)
-            if err != nil && rtn.loggingEnabled > 1 {
+            if err != nil && rtn.loggingEnabled > 2 {
               log.Println("Scheduler.go Unlocking Problem", err)
             }
           }
@@ -145,17 +126,8 @@ func (scheduler *Scheduler) WaitUntilAllAvailable(routineId string, paths []stri
     log.Println("Scheduler.go WaitUntilAllAvailable", paths)
   }
   task := MakeTask(routineId, paths, time.Now().UnixNano(), false)
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailable_B", paths)
-  }
   scheduler.startChannel <- task
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailable_C", paths)
-  }
   shouldContinue := <- task.ContinueChannel
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailable_D", paths)
-  }
   return shouldContinue
 }
 
@@ -164,17 +136,8 @@ func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(routineId string, paths 
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
   task := MakeTask(routineId, paths, time.Now().UnixNano() / 2, false)
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_B", paths, scheduler, scheduler.startChannel)
-  }
   scheduler.startChannel <- task
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_C", paths, scheduler, scheduler.startChannel)
-  }
   shouldContinue := <- task.ContinueChannel
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go WaitUntilAllAvailableUrgent_D", paths)
-  }
   if shouldContinue {
     return nil
   } else {
@@ -191,15 +154,6 @@ func (scheduler *Scheduler) DoneAll(routineId string, paths []string) {
     log.Println("Scheduler.go DoneAll", paths)
   }
   task := MakeTask(routineId, paths, -1, true)
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go DoneAll_B", paths)
-  }
   task.IsComplete = true
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go DoneAll_C", paths)
-  }
   scheduler.endChannel <- task
-  if scheduler.loggingEnabled > 2 {
-    log.Println("Scheduler.go DoneAll_D", paths)
-  }
 }

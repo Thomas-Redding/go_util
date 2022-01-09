@@ -40,9 +40,6 @@ func (cfs *ChildFileServer) Lock(paths []string) error {
       paths2[i] = path
     }
   }
-  if cfs.parent.loggingEnabled > 1 {
-    log.Println("FileServer.go", "LockB", paths2)
-  }
   return cfs.parent.scheduler.WaitUntilAllAvailableUrgent(cfs.routineId, paths2)
 }
 
@@ -57,9 +54,6 @@ func (cfs *ChildFileServer) Unlock(paths []string) {
     } else {
       paths2[i] = path
     }
-  }
-  if cfs.parent.loggingEnabled > 1 {
-    log.Println("FileServer.go", "UnlockB", paths2)
   }
   cfs.parent.scheduler.DoneAll(cfs.routineId, paths2)
 }
