@@ -32,32 +32,36 @@ func (cfs *ChildFileServer) Lock(paths []string) error {
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Lock", paths)
   }
+  paths2 := make([]string, len(paths))
   for i, path := range paths {
     if strings.HasPrefix(path, "/") {
-      path = path[1:]
+      paths2[i] = path[1:]
+    } else {
+      paths2[i] = path
     }
-    paths[i] = cfs.parent.rootDir + path
   }
   if cfs.parent.loggingEnabled > 1 {
-    log.Println("FileServer.go", "LockB", paths)
+    log.Println("FileServer.go", "LockB", paths2)
   }
-  return cfs.parent.scheduler.WaitUntilAllAvailableUrgent(cfs.routineId, paths)
+  return cfs.parent.scheduler.WaitUntilAllAvailableUrgent(cfs.routineId, paths2)
 }
 
 func (cfs *ChildFileServer) Unlock(paths []string) {
   if cfs.parent.loggingEnabled > 0 {
     log.Println("FileServer.go", "Unlock", paths)
   }
+  paths2 := make([]string, len(paths))
   for i, path := range paths {
     if strings.HasPrefix(path, "/") {
-      path = path[1:]
+      paths2[i] = path[1:]
+    } else {
+      paths2[i] = path
     }
-    paths[i] = cfs.parent.rootDir + path
   }
   if cfs.parent.loggingEnabled > 1 {
-    log.Println("FileServer.go", "UnlockB", paths)
+    log.Println("FileServer.go", "UnlockB", paths2)
   }
-  cfs.parent.scheduler.DoneAll(cfs.routineId, paths)
+  cfs.parent.scheduler.DoneAll(cfs.routineId, paths2)
 }
 
 /*
