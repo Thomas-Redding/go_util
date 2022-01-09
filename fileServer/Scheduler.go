@@ -27,6 +27,7 @@ func MakeScheduler() Scheduler {
     endChannel: make(chan *Task, 0),
     priorityQueue: makeTaskPriorityQueue(),
   }
+  rtn.loggingEnabled = 5
 
   // Add tasks to the priority queue
   go func() {
@@ -46,7 +47,7 @@ func MakeScheduler() Scheduler {
   // Add task completions to the priority queue
   go func() {
     if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go startChannel start")
+      log.Println("Scheduler.go endChannel start")
     }
     for task := range rtn.endChannel {
       if rtn.loggingEnabled > 2 {
@@ -55,7 +56,7 @@ func MakeScheduler() Scheduler {
       rtn.priorityQueue.Push(task)
     }
     if rtn.loggingEnabled > 2 {
-      log.Println("Scheduler.go startChannel end")
+      log.Println("Scheduler.go endChannel end")
     }
   }()
   go func() {
