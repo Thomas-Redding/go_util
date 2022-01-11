@@ -1,7 +1,7 @@
 package fileServer
 
 import (
-  "errors"
+  // "errors"
   "log"
   "time"
 )
@@ -122,16 +122,18 @@ func (scheduler *Scheduler) WaitUntilAvailable(routineId string, path string) bo
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailable(routineId string, paths []string) bool {
+  return true/*
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailable", paths)
   }
   task := MakeTask(routineId, paths, time.Now().UnixNano(), false)
   scheduler.startChannel <- task
   shouldContinue := <- task.ContinueChannel
-  return shouldContinue
+  return shouldContinue*/
 }
 
 func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(routineId string, paths []string) error {
+  /*
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go WaitUntilAllAvailableUrgent", paths)
   }
@@ -142,7 +144,8 @@ func (scheduler *Scheduler) WaitUntilAllAvailableUrgent(routineId string, paths 
     return nil
   } else {
     return errors.New("Something went wrong")
-  }
+  }*/
+  return nil
 }
 
 func (scheduler *Scheduler) Done(routineId string, path string) {
@@ -150,10 +153,11 @@ func (scheduler *Scheduler) Done(routineId string, path string) {
 }
 
 func (scheduler *Scheduler) DoneAll(routineId string, paths []string) {
+  /*
   if scheduler.loggingEnabled > 1 {
     log.Println("Scheduler.go DoneAll", paths)
   }
   task := MakeTask(routineId, paths, -1, true)
   task.IsComplete = true
-  scheduler.endChannel <- task
+  scheduler.endChannel <- task*/
 }
