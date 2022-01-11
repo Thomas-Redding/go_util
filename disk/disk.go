@@ -15,21 +15,6 @@ import (
   "strings"
 )
 
-/*
- * Returns all the children of a directory.
- * @param dirPath the path to the directory
- * @returns a list of children or an error 
- */
-func ChildrenOfDir(dirPath string) ([]string, error) {
-  files, err := ioutil.ReadDir(dirPath)
-  if err != nil { return nil, err }
-  rtn := []string{}
-  for _, file := range files {
-    rtn = append(rtn, file.Name())
-  }
-  return rtn, nil
-}
-
 func Copy(fromPath string, toPath string) error {
   dir, _, err := IsDirFile(fromPath)
   if err != nil {
@@ -189,6 +174,21 @@ func IsDirFile(entityPath string) (bool, bool, error) {
   }
   rtn := fileInfo.IsDir()
   return rtn, !rtn, nil
+}
+
+/*
+ * Returns all the children of a directory.
+ * @param dirPath the path to the directory
+ * @returns a list of children or an error 
+ */
+func Ls(dirPath string) ([]string, error) {
+  files, err := ioutil.ReadDir(dirPath)
+  if err != nil { return nil, err }
+  rtn := []string{}
+  for _, file := range files {
+    rtn = append(rtn, file.Name())
+  }
+  return rtn, nil
 }
 
 /*

@@ -62,13 +62,6 @@ func (cfs *ChildFileServer) Unlock(paths []string) {
  * The below methods simply wrap the `disk` methods with Lock() and Unlock()
  */
 
-func (cfs *ChildFileServer) ChildrenOfDir(dirPath string) ([]string, error) {
-  dirPath = cfs.parent.rootDir + dirPath
-  cfs.Lock([]string{dirPath})
-  defer cfs.Unlock([]string{dirPath})
-  return disk.ChildrenOfDir(dirPath)
-}
-
 func (cfs *ChildFileServer) Copy(fromPath string, toPath string) error {
   fromPath = cfs.parent.rootDir + fromPath
   toPath = cfs.parent.rootDir + toPath
@@ -119,6 +112,13 @@ func (cfs *ChildFileServer) IsDirFile(path string) (bool, bool, error) {
   cfs.Lock([]string{path})
   defer cfs.Unlock([]string{path})
   return disk.IsDirFile(path)
+}
+
+func (cfs *ChildFileServer) Ls(dirPath string) ([]string, error) {
+  dirPath = cfs.parent.rootDir + dirPath
+  cfs.Lock([]string{dirPath})
+  defer cfs.Unlock([]string{dirPath})
+  return disk.ChildrenOfDir(dirPath)
 }
 
 func (cfs *ChildFileServer) Unzip(zipFilePath string, destinationPath string) error {
