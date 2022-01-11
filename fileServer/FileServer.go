@@ -118,7 +118,7 @@ func (cfs *ChildFileServer) Ls(dirPath string) ([]string, error) {
   dirPath = cfs.parent.rootDir + dirPath
   cfs.Lock([]string{dirPath})
   defer cfs.Unlock([]string{dirPath})
-  return disk.ChildrenOfDir(dirPath)
+  return disk.Ls(dirPath)
 }
 
 func (cfs *ChildFileServer) Unzip(zipFilePath string, destinationPath string) error {
@@ -537,7 +537,7 @@ func (pfs *ParentFileServer) SetLoggingEnabled(loggingEnabled uint) {
 /********** Classless Functions **********/
 
 func childrenOfDirText(path string) (string, error) {
-  children, err := disk.ChildrenOfDir(path)
+  children, err := disk.Ls(path)
   if err != nil {
     return "", err
   }
