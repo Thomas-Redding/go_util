@@ -6,6 +6,9 @@ import (
   "errors"
   "fmt"
   "hash"
+  "image"
+  "image/jpeg"
+  "image/png"
   "io"
   "io/ioutil"
   "net/http"
@@ -152,6 +155,32 @@ func FileHash(filePath string, hasher hash.Hash) (string, error) {
     return "", err
   }
   return hex.EncodeToString(hasher.Sum(nil)), nil
+}
+
+/*
+ * file, err := os.Open(filepath)
+ * if err != nil {
+ *   return err
+ * }
+ * img := disk.Image(file, filepath.Ext(filepath))
+ */
+func Image(reader io.Reader, extension string) (image.Image, error) {
+  img, _, originalError := image.Decode(reader)
+  if originalError == nil {
+    return img, nil
+  }
+  if extension == ".jpeg" || extension == ".jpg" {
+    img, err := jpeg.Decode(reader)
+    if err == nil {
+      return img, nil
+    }
+  } else if extension == ".png" {
+    img, err := png.Decode(reader)
+    if err == nil {
+      return img, nil
+    }
+  }
+  return img, originalError
 }
 
 /*
