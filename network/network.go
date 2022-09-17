@@ -192,3 +192,103 @@ func isDirFile(filePath string) (bool, bool, error) {
   rtn := fileInfo.IsDir()
   return rtn, !rtn, nil
 }
+
+/*
+ * Provide a default implementation for the following HTTP methods:
+ *   * GET
+ *   * HEAD
+ *   * PUT
+ *   * DELETE
+ *   * POST
+ */
+func Handle(writer http.ResponseWriter, path string, method http.Method) {
+  if request.Method == http.MethodGet || request.Method == http.MethodHead {
+    // TODO: Use http.ServeFile() or similar
+  } else if request.Method == http.MethodPut {
+    err = SaveRequestBodyAsFile(request, path, false)
+    if err != nil {
+      SendError(writer, 500, "Internal Server Error: %v", err)
+      return
+    }
+    SendError(writer, 200, "")
+    return
+  } else if request.Method == http.MethodDelete {
+    err = os.RemoveAll(path)
+    if err != nil {
+      SendError(writer, 500, "Internal Server Error: %v", err)
+      return
+    }
+    SendError(writer, 200, "")
+    return
+  } else if request.Method == http.MethodPost {
+    _, err = SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
+    if err != nil {
+      SendError(writer, 500, "Internal Server Error: %v", err)
+      return
+    }
+    SendError(writer, 200, "")
+    return
+  } else {
+    SendError(writer, 400, "Bad Request: Unsupported Method")
+    return
+  }
+  SendError(writer, 500, "Internal Server Error: Could not handle.")
+  return
+}
+
+
+func SendError(writer http.ResponseWriter, errorCode int, format string, args ...interface{}) {
+  http.Error(writer, fmt.Sprintf(format, args...), errorCode)
+}
+
+
+
+/*
+ * 
+ * func main() {
+ *   server := &http.Server{
+ *     Addr:              ":8080",
+ *     ReadTimeout:       30 * time.Second,
+ *     WriteTimeout:      30 * time.Second,
+ *     IdleTimeout:       30 * time.Second,
+ *     ReadHeaderTimeout: 2 * time.Second,
+ *     Handler:           HandlerWithRequestLimit(handle, 37),
+ *     MaxHeaderBytes:    1 << 27, // 128 MB
+ *   }
+ *   server.ListenAndServe()
+ * }
+ * 
+ * func handle(writer http.ResponseWriter, request *http.Request) {
+ *   // Handle the request. The server will only allow up to 37 requests at a time now.
+ *   // Requests beyond this limit will simply return a 429 Error
+ * }
+ */
+func HandlerWithRequestLimit(handle func(http.ResponseWriter, *http.Request), maxConcurrentRequests int) *requestLimitHandlerWrapper {
+  return &requestLimitHandlerWrapper{
+    handler: handler,
+    quotaLeft: maxConcurrentRequests,
+  }
+}
+type requestLimitHandlerWrapper struct {
+  handler func(http.ResponseWriter, *http.Request)
+  mu sync.Mutex
+  quotaLeft int
+}
+func (handlerWrapper *MaxConcurrentRequestsWrapper) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+  handlerWrapper.mu.Lock()
+  tooManyRequests := false
+  if handlerWrapper.quotaLeft > 0 {
+    handlerWrapper.quotaLeft -= 1
+  } else {
+    tooManyRequests = true
+  }
+  handlerWrapper.mu.Unlock()
+  if tooManyRequests {
+    http.Error(writer, "Error 429: Too Many Requests", http.StatusTooManyRequests)
+    return
+  }
+  handlerWrapper.handler(writer, request)
+  handlerWrapper.mu.Lock()
+  handlerWrapper.quotaLeft += 1
+  handlerWrapper.mu.Unlock()
+}
