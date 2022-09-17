@@ -9,11 +9,11 @@ type Task struct {
   Channel chan bool // callback in which to complete the task
   EnqueueTime int64
   IsComplete bool
-  RoutineId string
+  RoutineId int64
   Priority int64 // priority queue
 }
 
-func MakeTask(routineId string, paths [][]string, priority int64, isComplete bool) *Task {
+func MakeTask(routineId int64, paths [][]string, priority int64, isComplete bool) *Task {
   return &Task{
     Paths: paths,
     Channel: make(chan bool),

@@ -3,6 +3,8 @@ package fileScheduler
 import (
   "strings"
   "time"
+
+  "github.com/huandu/go-tls"
 )
 
 /*
@@ -15,8 +17,8 @@ type FileScheduler struct {
   fileLocker FileLocker
   channel chan *Task
   priorityQueue TaskPriorityQueue
-  routinePaths map[string][][]string
-  enqueuedRoutines map[string]bool
+  routinePaths map[int64][][]string
+  enqueuedRoutines map[int64]bool
 }
 
 func MakeFileScheduler() FileScheduler {
@@ -24,8 +26,8 @@ func MakeFileScheduler() FileScheduler {
     fileLocker: MakeFileLocker(),
     channel: make(chan *Task, 0),
     priorityQueue: MakeTaskPriorityQueue(),
-    routinePaths: make(map[string][][]string),
-    enqueuedRoutines: make(map[string]bool),
+    routinePaths: make(map[int64][][]string),
+    enqueuedRoutines: make(map[int64]bool),
   }
 
   // Add tasks to the priority queue.
@@ -97,36 +99,35 @@ func MakeFileScheduler() FileScheduler {
   return rtn
 }
 
-// TODO: Remove routineId parameter and use some identifier of the go-routine.
-func (fileScheduler *FileScheduler) Lock(routineId string, path string) bool {
-  return fileScheduler.LockAll(routineId, []string{path})
+func (fileScheduler *FileScheduler) Lock(path string) bool {
+  return fileScheduler.LockAll([]string{path})
 }
 
-func (fileScheduler *FileScheduler) LockAll(routineId string, paths []string) bool {
-  return fileScheduler.lock(routineId, paths, time.Now().UnixNano())
+func (fileScheduler *FileScheduler) LockAll(paths []string) bool {
+  return fileScheduler.lock(paths, time.Now().UnixNano())
 }
 
-func (fileScheduler *FileScheduler) LockUrgent(routineId string, path string) bool {
-  return fileScheduler.LockAllUrgent(routineId, []string{path})
+func (fileScheduler *FileScheduler) LockUrgent(path string) bool {
+  return fileScheduler.LockAllUrgent([]string{path})
 }
 
-func (fileScheduler *FileScheduler) LockAllUrgent(routineId string, paths []string) bool {
-  return fileScheduler.lock(routineId, paths, time.Now().UnixNano() / 2)
+func (fileScheduler *FileScheduler) LockAllUrgent(paths []string) bool {
+  return fileScheduler.lock(paths, time.Now().UnixNano() / 2)
 }
 
-func (fileScheduler *FileScheduler)lock(routineId string, paths []string, priority int64) bool {
+func (fileScheduler *FileScheduler)lock(paths []string, priority int64) bool {
   pathArray := make([][]string, len(paths))
   for i, path := range paths {
     pathArray[i] = strings.Split(path, "/")
   }
-  task := MakeTask(routineId, pathArray, priority, false)
+  task := MakeTask(tls.ID(), pathArray, priority, false)
   fileScheduler.channel <- task
   didSucceed := <- task.Channel // wait to lock files
   return didSucceed
 }
 
-func (fileScheduler *FileScheduler) Unlock(routineId string) {
-  task := MakeTask(routineId, nil, -1, true)
+func (fileScheduler *FileScheduler) Unlock() {
+  task := MakeTask(tls.ID(), nil, -1, true)
   task.IsComplete = true
   fileScheduler.channel <- task // no need to wait for files to become unlocked
 }

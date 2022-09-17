@@ -11,13 +11,13 @@ import (
  *
  * // Reserves the item (and all its descendants) for the routine.
  * // This lock is NOT recursive.
- * Lock(path []string, routineId string) error
+ * Lock(path []string, routineId int64) error
  *
  * // Releases the item (and all its descendants) from the routine.
- * Unlock(path []string, routineId string) error
+ * Unlock(path []string, routineId int64) error
  *
  * // Returns true iff the item is locked by a different routine.
- * Locked(path []string, routineId string) bool
+ * Locked(path []string, routineId int64) bool
  *
  * // Prints the tree.
  * Print()
@@ -31,7 +31,7 @@ type FileLockerPathNode struct {
   parent *FileLockerPathNode
   children map[string]*FileLockerPathNode
   explicit bool // zero for all implicit nodes
-  routineId string // "" for all implicit nodes
+  routineId int64 // "" for all implicit nodes
 }
 
 type FileLocker struct {
@@ -42,7 +42,7 @@ func MakeFileLocker() FileLocker {
   return FileLocker{root: makeImplicitNode("", nil)}
 }
 
-func (fileLocker *FileLocker)Lock(path []string, routineId string) error {
+func (fileLocker *FileLocker)Lock(path []string, routineId int64) error {
   node := fileLocker.lockedNode(path)
   if node != nil && node.routineId != routineId {
     return errors.New("FileLocker.go: Attempted to lock from multiple routines.");
@@ -70,8 +70,8 @@ func (fileLocker *FileLocker)Lock(path []string, routineId string) error {
 }
 
 // TODO: Make this function more efficient.
-func doesOtherRoutineShareNode(node *FileLockerPathNode, routineId string) bool {
-  if node.routineId != "" && node.routineId != routineId {
+func doesOtherRoutineShareNode(node *FileLockerPathNode, routineId int64) bool {
+  if node.routineId != 0 && node.routineId != routineId {
     return true
   }
   for _, child := range node.children {
@@ -82,7 +82,7 @@ func doesOtherRoutineShareNode(node *FileLockerPathNode, routineId string) bool 
   return false
 }
 
-func (fileLocker *FileLocker)Unlock(path []string, routineId string) error {
+func (fileLocker *FileLocker)Unlock(path []string, routineId int64) error {
   node := fileLocker.root
   for i, part := range path {
     child, ok := node.children[part]
@@ -103,12 +103,12 @@ func (fileLocker *FileLocker)Unlock(path []string, routineId string) error {
   return errors.New("FileLocker.go: This should never happen");
 }
 
-func (fileLocker *FileLocker)Locked(path []string, routineId string) bool {
+func (fileLocker *FileLocker)Locked(path []string, routineId int64) bool {
   node := fileLocker.lockedNode(path)
   return node != nil && node.routineId != routineId
 }
 
-func (fileLocker *FileLocker)UnlockAll(routineId string) error {
+func (fileLocker *FileLocker)UnlockAll(routineId int64) error {
   // TODO(b/1)
   return nil
 }
@@ -182,9 +182,9 @@ func print(node *FileLockerPathNode, indents int) {
 }
 
 func makeImplicitNode(name string, parent *FileLockerPathNode) *FileLockerPathNode {
-  return &FileLockerPathNode{name: name, parent: parent, children: make(map[string]*FileLockerPathNode, 0), explicit: false, routineId: ""}
+  return &FileLockerPathNode{name: name, parent: parent, children: make(map[string]*FileLockerPathNode, 0), explicit: false, routineId: 0}
 }
 
-func makeExplicitNode(name string, parent *FileLockerPathNode, routineId string) *FileLockerPathNode {
+func makeExplicitNode(name string, parent *FileLockerPathNode, routineId int64) *FileLockerPathNode {
   return &FileLockerPathNode{name: name, parent: parent, children: make(map[string]*FileLockerPathNode, 0), explicit: true, routineId: routineId}
 }
