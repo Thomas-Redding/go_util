@@ -8,6 +8,7 @@ import (
   "net/http"
   "os"
   "path/filepath"
+  "sync"
 )
 
 /*
@@ -201,27 +202,27 @@ func isDirFile(filePath string) (bool, bool, error) {
  *   * DELETE
  *   * POST
  */
-func Handle(writer http.ResponseWriter, path string, method http.Method) {
-  if request.Method == http.MethodGet || request.Method == http.MethodHead {
+func Handle(writer http.ResponseWriter, request *http.Request, path string, httpMethod string) {
+  if httpMethod == http.MethodGet || httpMethod == http.MethodHead {
     // TODO: Use http.ServeFile() or similar
-  } else if request.Method == http.MethodPut {
-    err = SaveRequestBodyAsFile(request, path, false)
+  } else if httpMethod == http.MethodPut {
+    err := SaveRequestBodyAsFile(request, path, false)
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
     SendError(writer, 200, "")
     return
-  } else if request.Method == http.MethodDelete {
-    err = os.RemoveAll(path)
+  } else if httpMethod == http.MethodDelete {
+    err := os.RemoveAll(path)
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
       return
     }
     SendError(writer, 200, "")
     return
-  } else if request.Method == http.MethodPost {
-    _, err = SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
+  } else if httpMethod == http.MethodPost {
+    _, err := SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
       return
@@ -265,16 +266,16 @@ func SendError(writer http.ResponseWriter, errorCode int, format string, args ..
  */
 func HandlerWithRequestLimit(handle func(http.ResponseWriter, *http.Request), maxConcurrentRequests int) *requestLimitHandlerWrapper {
   return &requestLimitHandlerWrapper{
-    handler: handler,
+    handle: handle,
     quotaLeft: maxConcurrentRequests,
   }
 }
 type requestLimitHandlerWrapper struct {
-  handler func(http.ResponseWriter, *http.Request)
+  handle func(http.ResponseWriter, *http.Request)
   mu sync.Mutex
   quotaLeft int
 }
-func (handlerWrapper *MaxConcurrentRequestsWrapper) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (handlerWrapper *requestLimitHandlerWrapper) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
   handlerWrapper.mu.Lock()
   tooManyRequests := false
   if handlerWrapper.quotaLeft > 0 {
@@ -287,7 +288,7 @@ func (handlerWrapper *MaxConcurrentRequestsWrapper) ServeHTTP(writer http.Respon
     http.Error(writer, "Error 429: Too Many Requests", http.StatusTooManyRequests)
     return
   }
-  handlerWrapper.handler(writer, request)
+  handlerWrapper.handle(writer, request)
   handlerWrapper.mu.Lock()
   handlerWrapper.quotaLeft += 1
   handlerWrapper.mu.Unlock()
