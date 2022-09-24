@@ -2,14 +2,9 @@ package fileScheduler
 
 import (
   "strings"
+  "sync"
   "time"
-
-  "github.com/huandu/go-tls"
 )
-
-/*
- * FileScheduler supports recursive locks, but every lock must be matched by an unlock.
- */
 
 /********** FileScheduler **********/
 
@@ -19,6 +14,8 @@ type FileScheduler struct {
   priorityQueue TaskPriorityQueue
   routinePaths map[int64][][]string
   enqueuedRoutines map[int64]bool
+  counterLock sync.Mutex
+  counter int64
 }
 
 func MakeFileScheduler() FileScheduler {
@@ -28,6 +25,7 @@ func MakeFileScheduler() FileScheduler {
     priorityQueue: MakeTaskPriorityQueue(),
     routinePaths: make(map[int64][][]string),
     enqueuedRoutines: make(map[int64]bool),
+    counter: 0,
   }
 
   // Add tasks to the priority queue.
@@ -99,35 +97,36 @@ func MakeFileScheduler() FileScheduler {
   return rtn
 }
 
-func (fileScheduler *FileScheduler) Lock(path string) bool {
-  return fileScheduler.LockAll([]string{path})
+func (fileScheduler *FileScheduler) Lock(path string) int64 {
+  return fileScheduler.lock([]string{path})
 }
 
-func (fileScheduler *FileScheduler) LockAll(paths []string) bool {
-  return fileScheduler.lock(paths, time.Now().UnixNano())
+func (fileScheduler *FileScheduler) LockAll(paths []string) int64 {
+  return fileScheduler.lock(paths)
 }
 
-func (fileScheduler *FileScheduler) LockUrgent(path string) bool {
-  return fileScheduler.LockAllUrgent([]string{path})
-}
-
-func (fileScheduler *FileScheduler) LockAllUrgent(paths []string) bool {
-  return fileScheduler.lock(paths, time.Now().UnixNano() / 2)
-}
-
-func (fileScheduler *FileScheduler)lock(paths []string, priority int64) bool {
+func (fileScheduler *FileScheduler)lock(paths []string) int64 {
   pathArray := make([][]string, len(paths))
   for i, path := range paths {
     pathArray[i] = strings.Split(path, "/")
   }
-  task := MakeTask(tls.ID(), pathArray, priority, false)
+  priority := time.Now().UnixNano()
+  fileScheduler.counterLock.Lock()
+  fileScheduler.counter += 1
+  id := fileScheduler.counter
+  fileScheduler.counterLock.Unlock()
+  task := MakeTask(id, pathArray, priority, false)
   fileScheduler.channel <- task
   didSucceed := <- task.Channel // wait to lock files
-  return didSucceed
+  if didSucceed {
+    return id
+  } else {
+    return 0
+  }
 }
 
-func (fileScheduler *FileScheduler) Unlock() {
-  task := MakeTask(tls.ID(), nil, -1, true)
+func (fileScheduler *FileScheduler) Unlock(id int64) {
+  task := MakeTask(id, nil, -1, true)
   task.IsComplete = true
   fileScheduler.channel <- task // no need to wait for files to become unlocked
 }
