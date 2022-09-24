@@ -1,3 +1,5 @@
+github.com/Thomas-Redding/go_util v0.0.0-20220917185104-4cf07b34a000 h1:XdBwrgx/kqW+wd1gdVVC33aRMe0DrJBhnBp3PHuVILs=
+github.com/Thomas-Redding/go_util v0.0.0-20220917185104-4cf07b34a000/go.mod h1:rmPm2I0K/MYOR9x/qNxwaGMBuapfzCvmy0MvpfqWiH4=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/huandu/go-tls v1.0.1 h1:vdRzdlUFlqXWy0cfy5lVvHgUf6rt8QwEA/gCOCzsDX8=
