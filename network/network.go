@@ -202,10 +202,10 @@ func isDirFile(filePath string) (bool, bool, error) {
  *   * DELETE
  *   * POST
  */
-func Handle(writer http.ResponseWriter, request *http.Request, path string, httpMethod string) {
-  if httpMethod == http.MethodGet || httpMethod == http.MethodHead {
-    // TODO: Use http.ServeFile() or similar
-  } else if httpMethod == http.MethodPut {
+func Handle(writer http.ResponseWriter, request *http.Request, path string) {
+  if request.Method == http.MethodGet || request.Method == http.MethodHead {
+    http.ServeFile(writer, request, path)
+  } else if request.Method == http.MethodPut {
     err := SaveRequestBodyAsFile(request, path, false)
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
@@ -213,7 +213,7 @@ func Handle(writer http.ResponseWriter, request *http.Request, path string, http
     }
     SendError(writer, 200, "")
     return
-  } else if httpMethod == http.MethodDelete {
+  } else if request.Method == http.MethodDelete {
     err := os.RemoveAll(path)
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
@@ -221,7 +221,7 @@ func Handle(writer http.ResponseWriter, request *http.Request, path string, http
     }
     SendError(writer, 200, "")
     return
-  } else if httpMethod == http.MethodPost {
+  } else if request.Method == http.MethodPost {
     _, err := SaveFormPostAsFiles(request, path, 10 << 30) // Size limit of 10 GB
     if err != nil {
       SendError(writer, 500, "Internal Server Error: %v", err)
